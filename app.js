@@ -1332,7 +1332,7 @@ window.startReplication = function(recipeId) {
 };
 
 window.startReplicationFromAI = function(v60RecipeId) {
-  const recipe = v60Recipes.find(r => r.id === v60RecipeId);
+  const recipe = masterRecipes.find(r => r.id === v60RecipeId);
   if (!recipe || !recipe.pourStages || recipe.pourStages.length === 0) return;
 
   // Setup Replication Mode State
