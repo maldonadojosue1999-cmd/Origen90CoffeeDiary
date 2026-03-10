@@ -1,6 +1,6 @@
 {
-  "name": "Diario de Café",
-  "short_name": "Diario Café",
+  "name": "Origen 90 Coffee Diary",
+  "short_name": "Origen 90",
   "description": "Tu bitácora personal de extracción y cata de café de especialidad.",
   "start_url": "./index.html",
   "display": "standalone",
