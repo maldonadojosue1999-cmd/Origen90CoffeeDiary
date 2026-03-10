@@ -118,9 +118,35 @@
               </select>
             </div>
 
-            <div class="form-group">
-              <label for="bean-origin">Origen del Grano</label>
-              <input type="text" id="bean-origin" required placeholder="ej. Etiopía Yirgacheffe">
+            <div class="input-row">
+              <div class="form-group">
+                <label for="bean-origin">Origen del Grano</label>
+                <input type="text" id="bean-origin" required placeholder="ej. Etiopía Yirgacheffe">
+              </div>
+              <div class="form-group">
+                <label for="bean-varietal">Variedad</label>
+                <select id="bean-varietal" required>
+                  <option value="" disabled selected>Selecciona</option>
+                  <option value="Blend / Mezcla">Blend / Mezcla</option>
+                  <option value="Bourbon">Bourbon</option>
+                  <option value="Bourbon Rosado">Bourbon Rosado</option>
+                  <option value="Caturra">Caturra</option>
+                  <option value="Catuai">Catuai</option>
+                  <option value="Castillo">Castillo</option>
+                  <option value="Colombia">Colombia</option>
+                  <option value="Geisha / Gesha">Geisha / Gesha</option>
+                  <option value="Heirloom (Etiopía)">Heirloom (Etiopía)</option>
+                  <option value="Maragogype">Maragogype</option>
+                  <option value="Mundo Novo">Mundo Novo</option>
+                  <option value="Pacamara">Pacamara</option>
+                  <option value="Pacas">Pacas</option>
+                  <option value="SL28 / SL34">SL28 / SL34</option>
+                  <option value="Typica">Typica</option>
+                  <option value="Wush Wush">Wush Wush</option>
+                  <option value="Otra">Otra</option>
+                </select>
+                <input type="text" id="bean-varietal-extra" class="hidden" style="margin-top: 8px;" placeholder="¿Qué granos lo componen?" />
+              </div>
             </div>
 
             <div class="input-row">
@@ -209,6 +235,45 @@
           <p id="daily-recipe-desc" style="color: var(--color-text-secondary); font-size: 0.9rem; margin-bottom: 16px;">Descubriendo inspiración diaria...</p>
           <div id="daily-recipe-ingredients" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;"></div>
           <div id="daily-recipe-steps" style="font-size: 0.85rem; color: var(--color-text-muted); border-left: 2px solid var(--color-border); padding-left: 10px;"></div>
+        </div>
+
+        <!-- Masterclass IA Suggester -->
+        <div id="ai-suggester-box" class="surface hidden" style="background-color: rgba(106, 191, 99, 0.05); border-color: var(--color-success); border-width: 1px; border-style: solid; margin-bottom: var(--spacing-md); position: relative; overflow: hidden; padding: 0;">
+          <div style="position: absolute; top: -15px; right: -15px; opacity: 0.1; pointer-events: none;">
+            <svg width="100" height="100" viewBox="0 0 24 24"><path fill="currentColor" d="M12,2A7,7 0 0,0 5,9C5,11.38 6.19,13.47 8,14.74V17A1,1 0 0,0 9,18H15A1,1 0 0,0 16,17V14.74C17.81,13.47 19,11.38 19,9A7,7 0 0,0 12,2M9,21A1,1 0 0,0 10,22H14A1,1 0 0,0 15,21V20H9V21Z"/></svg>
+          </div>
+          
+          <!-- Tabs Header -->
+          <div style="display: flex; border-bottom: 1px solid rgba(106, 191, 99, 0.2);">
+            <button id="tab-ia-parati" class="btn active-tab-ia" style="flex: 1; border-radius: 0; background: transparent; padding: 12px; font-size: 0.85rem; font-weight: 600; color: var(--color-success); border-bottom: 2px solid var(--color-success); transition: all 0.2s;">
+              <svg width="18" height="18" viewBox="0 0 24 24" style="vertical-align: text-bottom; margin-right: 4px;"><path fill="currentColor" d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
+              Para Ti
+            </button>
+            <button id="tab-ia-catalogo" class="btn" style="flex: 1; border-radius: 0; background: transparent; padding: 12px; font-size: 0.85rem; font-weight: 500; color: var(--color-text-secondary); border-bottom: 2px solid transparent; transition: all 0.2s;">
+              <svg width="18" height="18" viewBox="0 0 24 24" style="vertical-align: text-bottom; margin-right: 4px;"><path fill="currentColor" d="M12 3C7.03 3 3 7.03 3 12S7.03 21 12 21 21 16.97 21 12 16.97 3 12 3M17 13H13V17H11V13H7V11H11V7H13V11H17V13Z"/></svg>
+              Catálogo
+            </button>
+          </div>
+          
+          <!-- Content: Para Ti -->
+          <div id="ai-suggester-content" style="padding: 16px;"></div>
+
+          <!-- Content: Catalogo -->
+          <div id="ai-catalog-content" class="hidden" style="padding: 16px;">
+            <div style="font-size: 0.85rem; color: var(--color-text-secondary); margin-bottom: 12px;">Explora recetas maestras para todos tus métodos.</div>
+            
+            <!-- Filters -->
+            <div id="ai-catalog-filters" style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 12px; scrollbar-width: none;">
+              <div class="chip selected" data-method="Todos" style="white-space: nowrap;">Todos</div>
+              <div class="chip" data-method="V60" style="white-space: nowrap;">V60</div>
+              <div class="chip" data-method="Aeropress" style="white-space: nowrap;">Aeropress</div>
+              <div class="chip" data-method="Prensa Francesa" style="white-space: nowrap;">Prensa Francesa</div>
+              <div class="chip" data-method="Chemex" style="white-space: nowrap;">Chemex</div>
+            </div>
+
+            <!-- List -->
+            <div id="ai-catalog-list" style="display: flex; flex-direction: column; gap: 12px;"></div>
+          </div>
         </div>
 
         <div class="surface">

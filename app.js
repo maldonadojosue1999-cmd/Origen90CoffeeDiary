@@ -85,6 +85,141 @@ const espressoRecipes = [
   { id: 30, name: "Espresso Cubano", description: "Un short shot inyectado con azúcar directamente en la pastilla o en la crema.", req: ["Azúcar morena"], steps: ["Prepara tu portafiltro con el café molido. Pon una capa fina de Azúcar morena en el fondo de la taza receptora (o arriba del disco de café).", "Extrae el Espresso (ristretto idealmente).", "La primera crema del café formará una 'espumita' increíblemente densa con el azúcar al revolver vigorosamente."] }
 ];
 
+// Masterclass Intelligence Database
+const masterRecipes = [
+  { 
+    id: "v60_jas", 
+    method: "V60",
+    name: "Método James Hoffmann (The Ultimate V60)", 
+    description: "Extracción uniforme que favorece la dulzura y el balance en granos de alta densidad.", 
+    steps: ["Molienda: Media-fina. Ratio: 1:15 (Ej. 15g café / 225g agua).", "0:00 - Vierte el doble o triple de agua (45g) y haz un 'Swirl' vigoroso para el blooming.", "0:45 - Vierte en espiral hasta alcanzar el 60% del peso total (135g) rápidamente.", "1:15 - Vierte el 40% restante (hasta 225g) más lento.", "1:30 - Remueve una vez con cuchara y haz otro 'Swirl' ligero.", "2:30 a 3:00 - Debería terminar la extracción. Cama plana."],
+    pourStages: [
+      { id: 'jas_1', timeMs: 0, timeFormatted: '00:00.0', note: 'Blooming + Swirl', waterTarget: '45' },
+      { id: 'jas_2', timeMs: 45000, timeFormatted: '00:45.0', note: 'Vertido Fuerte', waterTarget: '135' },
+      { id: 'jas_3', timeMs: 75000, timeFormatted: '01:15.0', note: 'Vertido Suave', waterTarget: '225' },
+      { id: 'jas_4', timeMs: 90000, timeFormatted: '01:30.0', note: 'Remover + Swirl', waterTarget: '225' },
+      { id: 'jas_end', timeMs: 180000, timeFormatted: '03:00.0', note: 'Fin Extracción', waterTarget: '225' }
+    ]
+  },
+  { 
+    id: "v60_46", 
+    method: "V60",
+    name: "Método Tetsu Kasuya (4:6 Switch)", 
+    description: "Control total de acidez/dulzura (primer 40%) y fuerza (último 60%). Ideal para resaltar notas brillantes.", 
+    steps: ["Molienda: Muy gruesa (casi prensa francesa). Ratio: 1:15.", "0:00 - Vertido 1: 50g (Más agua aquí = Más acidez. Menos agua = Más dulzura).", "0:45 - Vertido 2: 70g (Completa el primer 40%).", "1:30 - Vertido 3: 60g.", "2:15 - Vertido 4: 60g.", "3:00 - Vertido 5: 60g (Divide el último 60% en más vertidos para mayor fuerza, o menos para un café más ligero)."],
+    pourStages: [
+      { id: 'kas_1', timeMs: 0, timeFormatted: '00:00.0', note: 'Fase Dulzura/Acidez', waterTarget: '50' },
+      { id: 'kas_2', timeMs: 45000, timeFormatted: '00:45.0', note: 'Cierre de Fase 40%', waterTarget: '120' },
+      { id: 'kas_3', timeMs: 90000, timeFormatted: '01:30.0', note: 'Fuerza 1/3', waterTarget: '180' },
+      { id: 'kas_4', timeMs: 135000, timeFormatted: '02:15.0', note: 'Fuerza 2/3', waterTarget: '240' },
+      { id: 'kas_5', timeMs: 180000, timeFormatted: '03:00.0', note: 'Fuerza 3/3', waterTarget: '300' }
+    ]
+  },
+  { 
+    id: "v60_osmotic", 
+    method: "V60",
+    name: "Flujo Osmótico (Café Dark/Medium)", 
+    description: "Extrae solo los componentes dulces y ricos del centro, evitando las canalizaciones amargas del borde.", 
+    steps: ["Molienda: Media-gruesa. Ratio: 1:15.", "0:00 - Vierte 30g solo en el centro muy suavemente y deja florecer hasta que se agriete (aprox. 30s).", "0:30 - Comienza a verter con flujo milimétrico solo en una moneda del tamaño de 1 peso en el centro.", "Nunca toques el borde de papel ni rompas la costra exterior oscura.", "Mantén el nivel de agua constante hasta llegar al peso final."],
+    pourStages: [
+      { id: 'osm_1', timeMs: 0, timeFormatted: '00:00.0', note: 'Centro (Soft Bloom)', waterTarget: '30' },
+      { id: 'osm_2', timeMs: 30000, timeFormatted: '00:30.0', note: 'Pulsos Centro (Gota)', waterTarget: '100' },
+      { id: 'osm_3', timeMs: 60000, timeFormatted: '01:00.0', note: 'Mantener Nivel Centro', waterTarget: '180' },
+      { id: 'osm_4', timeMs: 90000, timeFormatted: '01:30.0', note: 'Flujo Constante (Flotar)', waterTarget: '250' }
+    ]
+  },
+  { 
+    id: "v60_rao", 
+    method: "V60",
+    name: "Scott Rao (One Pour & Spin)", 
+    description: "Alta eficiencia de extracción. Ideal para tuestes nórdicos muy claros que cuestan disolver.", 
+    steps: ["Molienda: Media-fina. Ratio: 1:17.", "0:00 - Blooming con 3x agua (Ej. 20g café / 60g agua). Revuelve agresivamente con cuchara excavando ('Excavation').", "0:45 - Un solo vertido continuo y relativamente rápido en círculos concéntricos hasta llegar al peso total (340g).", "Al finalizar el vertido, haz el 'Rao Spin' (toma la V60 y gírala en círculos para crear fuerza centrífuga).", "La cama debe quedar perfectamente plana y sin sedimentos en las paredes."],
+    pourStages: [
+      { id: 'rao_1', timeMs: 0, timeFormatted: '00:00.0', note: 'Bloom + Excavación', waterTarget: '60' },
+      { id: 'rao_2', timeMs: 45000, timeFormatted: '00:45.0', note: 'Vertido Principal Rápido', waterTarget: '340' },
+      { id: 'rao_3', timeMs: 90000, timeFormatted: '01:30.0', note: 'Rao Spin (Centrífuga)', waterTarget: '340' }
+    ]
+  },
+  { 
+    id: "v60_iced", 
+    method: "V60",
+    name: "Flash Brew Hielo Japonés", 
+    description: "Atrapa los compuestos volátiles florales enfriando repentinamente el café. Perfecto para Geishas y lavados florales.", 
+    steps: ["Molienda: Ligeramente más fina. Ratio total 1:15 (2/3 Agua caliente, 1/3 Hielo).", "Ejemplo: 20g café, 100g de Hielo en el servidor, 200g de Agua caliente para extraer.", "0:00 - Blooming 60g de agua por 45s.", "0:45 - Viertido lento y centro-céntrico de los 140g restantes.", "Deja que gotee directo sobre los cubos de hielo. Remueve bien para enfriar instantáneamente."],
+    pourStages: [
+      { id: 'ice_1', timeMs: 0, timeFormatted: '00:00.0', note: 'Blooming Fuerte', waterTarget: '60' },
+      { id: 'ice_2', timeMs: 45000, timeFormatted: '00:45.0', note: 'Vertido Lento Central', waterTarget: '200' },
+      { id: 'ice_3', timeMs: 120000, timeFormatted: '02:00.0', note: 'Remover Hielo Total', waterTarget: '200' }
+    ]
+  },
+  { 
+    id: "ap_hoffmann", 
+    method: "Aeropress",
+    name: "Hoffmann Aeropress Ultimate", 
+    description: "La técnica estándar definitiva para consistencia y cero acidez amarga.", 
+    steps: ["Molienda: Fina (tipo espresso goteo). Ratio: 1:18 (11g café / 200g agua caliente plena).", "0:00 - Vierte los 200g de agua directamente sobre el café de una sola vez.", "0:10 - Inserta el émbolo justo en la punta para crear un sello de vacío (evita que el agua gotee).", "2:00 - Toma la Aeropress por el cuerpo, haz un leve 'swirl' para nivelar la cama.", "2:30 - Presiona suavemente el émbolo hacia abajo por 30 segundos (sin hacer fuerza excesiva)."],
+    pourStages: [
+      { id: 'ap_1', timeMs: 0, timeFormatted: '00:00.0', note: 'Vertido Total', waterTarget: '200' },
+      { id: 'ap_2', timeMs: 10000, timeFormatted: '00:10.0', note: 'Insertar Sello Émbolo', waterTarget: '200' },
+      { id: 'ap_3', timeMs: 120000, timeFormatted: '02:00.0', note: 'Romper Costra (Swirl)', waterTarget: '200' },
+      { id: 'ap_4', timeMs: 150000, timeFormatted: '02:30.0', note: 'Prensar Suavemente (30s)', waterTarget: '200' },
+      { id: 'ap_end', timeMs: 180000, timeFormatted: '03:00.0', note: 'Fin Extracción', waterTarget: '200' }
+    ]
+  },
+  { 
+    id: "ap_inverted", 
+    method: "Aeropress",
+    name: "Aeropress Invertido (Cuerpo Denso)", 
+    description: "Maximiza el tiempo de inmersión total similar a una cata brasileña.", 
+    steps: ["Molienda: Media. Ratio: 1:15 (15g café / 225g agua).", "0:00 - Con la Aeropress invertida (sobre el émbolo), vierte 50g para un blooming agresivo, revuelve 5 veces.", "0:30 - Llena lentamente hasta 225g.", "1:00 - Coloca el filtro de papel, enróscalo y purga el aire extra. Espera.", "2:00 - Voltea rápidamente la Aeropress sobre la taza (cuidado) y presiona por 30s."],
+    pourStages: [
+      { id: 'inv_1', timeMs: 0, timeFormatted: '00:00.0', note: 'Blooming + Remover Invertido', waterTarget: '50' },
+      { id: 'inv_2', timeMs: 30000, timeFormatted: '00:30.0', note: 'Llenado Total', waterTarget: '225' },
+      { id: 'inv_3', timeMs: 60000, timeFormatted: '01:00.0', note: 'Colocar Filtro y Purgar', waterTarget: '225' },
+      { id: 'inv_4', timeMs: 120000, timeFormatted: '02:00.0', note: 'Voltear y Prensar', waterTarget: '225' },
+      { id: 'inv_end', timeMs: 150000, timeFormatted: '02:30.0', note: 'Fin Extracción', waterTarget: '225' }
+    ]
+  },
+  { 
+    id: "fp_hoffmann", 
+    method: "Prensa Francesa",
+    name: "Hoffmann No-Press French Press", 
+    description: "Adiós a los sedimentos y sabor a barro. Una técnica pasiva para una taza cristalina.", 
+    steps: ["Molienda: Media. Ratio: 1:15 (30g café / 450g agua recién hervida).", "0:00 - Vierte toda el agua directo sobre el café asegurando mojar todo.", "4:00 - La costra está flotando arriba. Con dos cucharas, rompe la costra y remueve la espuma/sedimentos flotantes.", "5:00 - ¡No pongas la tapa aún! Deja el café asentar solo por 5 a 8 minutos más. La gravedad limpiará tu taza.", "10:00 - Ahora sí, pon el émbolo pero NO LO BAJES, solo que descanse sobre la superficie. Sirve suavemente."],
+    pourStages: [
+      { id: 'fp_1', timeMs: 0, timeFormatted: '00:00.0', note: 'Vertido Fuerte (Llenar)', waterTarget: '450' },
+      { id: 'fp_2', timeMs: 240000, timeFormatted: '04:00.0', note: 'Romper Costra (Cucharas)', waterTarget: '450' },
+      { id: 'fp_3', timeMs: 300000, timeFormatted: '05:00.0', note: 'Asentamiento Pasivo Térmico', waterTarget: '450' },
+      { id: 'fp_end', timeMs: 600000, timeFormatted: '10:00.0', note: 'Servir (Sin Prensar)', waterTarget: '450' }
+    ]
+  },
+  { 
+    id: "cx_standard", 
+    method: "Chemex",
+    name: "Chemex Estándar (Claridad Floral)", 
+    description: "Filtros gruesos atrapan todos los aceites. Perfecto para resaltar acidez brillante en grandes lotes.", 
+    steps: ["Molienda: Media-Gruesa. Ratio: 1:16 (30g café / 480g agua).", "0:00 - Blooming lento en espiral con 60g de agua. Deja florecer hasta 45s.", "0:45 - Vertido central concéntrico extendido muy suave hasta 250g.", "1:45 - Segundo vertido suave evitando las paredes gruesas (no 'lavar' el papel) hasta los 480g finales.", "3:30 a 5:00 - Drenaje completo esperado por la restricción de flujo de la Chemex."],
+    pourStages: [
+      { id: 'cx_1', timeMs: 0, timeFormatted: '00:00.0', note: 'Blooming Suave', waterTarget: '60' },
+      { id: 'cx_2', timeMs: 45000, timeFormatted: '00:45.0', note: 'Vertido Lento al Centro', waterTarget: '250' },
+      { id: 'cx_3', timeMs: 105000, timeFormatted: '01:45.0', note: 'Vertido Final', waterTarget: '480' },
+      { id: 'cx_end', timeMs: 270000, timeFormatted: '04:30.0', note: 'Fin Extracción Esperado', waterTarget: '480' }
+    ]
+  }
+];
+
+const varietalRecommendations = {
+  "Geisha / Gesha": { recipe: "v60_jas", reason: "Tu pasión por el Geisha significa que valoras la extrema limpieza y notas florales. El método de James Hoffmann es ideal para maximizar esa claridad sin sobre-extraer amargor en granos de tan alta densidad genética." },
+  "Heirloom (Etiopía)": { recipe: "v60_iced", reason: "Los etíopes Heirloom tienen delicadas notas a jazmín y té negro. ¿Has probado atrapar esos compuestos volátiles sobre hielo? El Flash Brew evitará que esas frágiles notas ácidas se oxiden con el calor." },
+  "Bourbon": { recipe: "v60_osmotic", reason: "El Bourbon suele tener un cuerpo meloso y una dulzura fantástica. El Flujo Osmótico concentra la extracción en el corazón trufado de la pastilla de café, resaltando chocolates y nueces intensas." },
+  "Caturra": { recipe: "v60_46", reason: "El Caturra puede tener una acidez brillante y cítrica. Usando el método 4:6 de Kasuya (modificando el vertido inicial a 60g y el segundo a 40g), podrás enfatizar su brillo natural al máximo." },
+  "Castillo": { recipe: "v60_rao", reason: "El Castillo y otros híbridos colombianos resisten súper bien altas extracciones sin amargar rápido. El vertido único de Scott Rao te dará una taza súper sólida y de mucho cuerpo." },
+  "Bourbon Rosado": { recipe: "v60_jas", reason: "El Pink Bourbon brilla en su complejidad enzimática (frutas de hueso). Hoffmann asegura una cama plana y térmica estable, lo mejor para no perder esas notas de melocotón/frutos rojos." },
+  "Typica": { recipe: "v60_46", reason: "Los Typicas son tés dulces y elegantes. Con la molienda gruesa del 4:6 lograrás una bebida súper cristalina, casi como una infusión limpia." },
+  "Blend / Mezcla": { recipe: "v60_rao", reason: "Cuando es un blend, necesitas asegurar una extracción ultra pareja porque tienes granos de diferentes tamaños y densidades. La agitación del 'Rao Spin' te garantiza consistencia taza a taza." },
+  "Otra": { recipe: "v60_jas", reason: "Para orígenes experimentales o desconocidos, la receta del 'Ultimate V60' es el punto de partida estándar de oro para juzgar un café especial." }
+};
+
 // SCA Flavor Wheel Data
 const scaData = [
   { category: 'Floral', color: '#eabae8', flavors: ['Manzanilla', 'Rosa', 'Jazmín'] },
@@ -128,6 +263,7 @@ let repTimerInterval;
 let isRepTimerRunning = false;
 let repStartTime = 0;
 let repElapsedTime = 0;
+let previousViewBeforeReplication = 'view-recetario';
 // Inspiration Logic
 let selectedIngredients = [];
 
@@ -201,6 +337,141 @@ function renderInspiration() {
 
   // Initial render of all recipes
   filterAndRenderRecipes();
+
+  // Trigger AI Suggester
+  analyzeUserBeans();
+}
+
+function analyzeUserBeans() {
+  const suggesterBox = document.getElementById('ai-suggester-box');
+  const suggesterContent = document.getElementById('ai-suggester-content');
+  suggesterBox.classList.add('hidden'); // Hide by default
+
+  if (!tastings || tastings.length === 0) return;
+
+  // 1. Find the highest rated varietals
+  const highlyRated = tastings.filter(t => t.rating >= 4 && t.varietal);
+  
+  // If no highly rated ones, look at recent ones
+  const beansToAnalyze = highlyRated.length > 0 ? highlyRated : tastings.filter(t => t.varietal);
+
+  if (beansToAnalyze.length === 0) return;
+
+  // Sort by newest first
+  beansToAnalyze.sort((a, b) => b.id - a.id);
+
+  // Take the most recent highly-rated bean
+  const targetBean = beansToAnalyze[0];
+  
+  // Clean varietal string for matching (remove parens extra data)
+  let cleanVarietal = targetBean.varietal.split(' (')[0].trim();
+  
+  // Match with intelligence database
+  const recommendation = varietalRecommendations[cleanVarietal];
+
+  if (recommendation) {
+    const recipe = masterRecipes.find(r => r.id === recommendation.recipe);
+    if (recipe) {
+      // Build UI
+      suggesterContent.innerHTML = `
+        <div style="font-size: 0.9rem; color: var(--color-text-primary); margin-bottom: 12px; line-height: 1.4;">
+          Hemos notado que has estado catando <strong>${cleanVarietal}</strong> (Origen: ${targetBean.origin}). 
+          <span style="color: var(--color-text-muted);">${recommendation.reason}</span>
+        </div>
+        
+        <div style="background-color: var(--color-surface); padding: 12px; border-radius: var(--radius-sm); border-left: 3px solid var(--color-success);">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
+            <div style="font-weight: 600; font-size: 1rem; color: var(--color-success);">${recipe.name}</div>
+            <span style="font-size: 0.7rem; background: rgba(106, 191, 99, 0.1); color: var(--color-success); padding: 2px 6px; border-radius: 4px; text-transform: uppercase;">${recipe.method}</span>
+          </div>
+          <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-bottom: 12px; font-style: italic;">${recipe.description}</div>
+          
+          <div style="font-size: 0.85rem; color: var(--color-text-primary); margin-bottom: 12px;">
+            ${recipe.steps.map((s, i) => `<div style="margin-bottom: 6px;"><strong>Paso ${i+1}:</strong> ${s}</div>`).join('')}
+          </div>
+          
+          <button class="btn btn-primary" onclick="window.startReplicationFromAI('${recipe.id}')" style="width: 100%; font-size: 0.9rem; padding: 10px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" style="margin-right: 6px; vertical-align: bottom;"><path fill="currentColor" d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12.5,7V12.25L17,14.92L16.25,16.15L11,13V7H12.5Z"/></svg>
+            Replicar Receta ${recipe.method}
+          </button>
+        </div>
+      `;
+      suggesterBox.classList.remove('hidden');
+    }
+  } else {
+    // If no specific recommendation but tastings exist, just show the box to allow catalog access
+    suggesterContent.innerHTML = `<div style="font-size: 0.9rem; color: var(--color-text-secondary); padding: 10px 0;">Sigue catando diferentes granos para recibir recomendaciones personalizadas. Mientras tanto, explora el Catálogo de Masterclass.</div>`;
+    suggesterBox.classList.remove('hidden');
+  }
+}
+
+// Masterclass Tab System
+document.getElementById('tab-ia-parati').addEventListener('click', () => {
+  document.getElementById('tab-ia-parati').classList.add('active-tab-ia');
+  document.getElementById('tab-ia-parati').style.color = 'var(--color-success)';
+  document.getElementById('tab-ia-parati').style.borderBottomColor = 'var(--color-success)';
+  
+  document.getElementById('tab-ia-catalogo').classList.remove('active-tab-ia');
+  document.getElementById('tab-ia-catalogo').style.color = 'var(--color-text-secondary)';
+  document.getElementById('tab-ia-catalogo').style.borderBottomColor = 'transparent';
+
+  document.getElementById('ai-suggester-content').classList.remove('hidden');
+  document.getElementById('ai-catalog-content').classList.add('hidden');
+});
+
+document.getElementById('tab-ia-catalogo').addEventListener('click', () => {
+  document.getElementById('tab-ia-catalogo').classList.add('active-tab-ia');
+  document.getElementById('tab-ia-catalogo').style.color = 'var(--color-success)';
+  document.getElementById('tab-ia-catalogo').style.borderBottomColor = 'var(--color-success)';
+  
+  document.getElementById('tab-ia-parati').classList.remove('active-tab-ia');
+  document.getElementById('tab-ia-parati').style.color = 'var(--color-text-secondary)';
+  document.getElementById('tab-ia-parati').style.borderBottomColor = 'transparent';
+
+  document.getElementById('ai-suggester-content').classList.add('hidden');
+  document.getElementById('ai-catalog-content').classList.remove('hidden');
+  
+  renderMasterCatalog('Todos');
+});
+
+// Catalog Filters
+document.querySelectorAll('#ai-catalog-filters .chip').forEach(chip => {
+  chip.addEventListener('click', (e) => {
+    document.querySelectorAll('#ai-catalog-filters .chip').forEach(c => c.classList.remove('selected'));
+    e.target.classList.add('selected');
+    renderMasterCatalog(e.target.dataset.method);
+  });
+});
+
+function renderMasterCatalog(methodFilter) {
+  const container = document.getElementById('ai-catalog-list');
+  container.innerHTML = '';
+  
+  let recipesToRender = masterRecipes;
+  if (methodFilter !== 'Todos') {
+    recipesToRender = masterRecipes.filter(r => r.method === methodFilter);
+  }
+
+  recipesToRender.forEach(recipe => {
+    const card = document.createElement('div');
+    card.style.cssText = 'background: var(--color-bg); padding: 16px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.05);';
+    card.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
+        <div style="font-weight: 500; font-size: 1.05rem; color: var(--color-text-primary);">${recipe.name}</div>
+        <span style="font-size: 0.7rem; background: rgba(255,255,255,0.1); color: var(--color-text-secondary); padding: 2px 6px; border-radius: 4px; text-transform: uppercase;">${recipe.method}</span>
+      </div>
+      <div style="font-size: 0.85rem; color: var(--color-text-secondary); margin-bottom: 12px; font-style: italic;">${recipe.description}</div>
+      
+      <div style="font-size: 0.8rem; color: var(--color-text-muted); border-left: 2px solid var(--color-border); padding-left: 10px; margin-bottom: 12px; max-height: 80px; overflow-y: auto; scrollbar-width: thin;">
+        ${recipe.steps.map((s, i) => `<div style="margin-bottom: 4px;"><strong>Paso ${i+1}:</strong> ${s}</div>`).join('')}
+      </div>
+
+      <button class="btn btn-outline" onclick="window.startReplicationFromAI('${recipe.id}')" style="width: 100%; font-size: 0.85rem; padding: 6px;">
+        Replicar
+      </button>
+    `;
+    container.appendChild(card);
+  });
 }
 
 function filterAndRenderRecipes() {
@@ -286,6 +557,7 @@ function initFirebaseSync() {
     tastings = snapshot.docs.map(d => ({ firebaseId: d.id, ...d.data() }));
     updateExtractionDropdown();
     renderRecipes();
+    analyzeUserBeans(); // Re-run AI logic if new tastings arrive
   });
 }
 
@@ -426,6 +698,7 @@ function setupReplicationTimer() {
     
     repTimerGuideDisplay.textContent = '¡Listo! Presiona Start para comenzar.';
     repTimerGuideDisplay.style.color = 'var(--color-accent)';
+    document.getElementById('rep-roadmap').innerHTML = ''; // Force rebuild
     updateRepTimerUI();
     renderRoadmapProgress(0);
 
@@ -441,9 +714,9 @@ function setupReplicationTimer() {
     repElapsedTime = 0;
     replicateMode = false;
     
-    // Hide replicate view, show recetario
+    // Hide replicate view, show previous view
     document.getElementById('view-replicar').classList.add('hidden');
-    document.getElementById('view-recetario').classList.remove('hidden');
+    document.getElementById(previousViewBeforeReplication).classList.remove('hidden');
     document.querySelector('nav').classList.remove('hidden'); // Show bottom nav again
   });
 }
@@ -509,34 +782,71 @@ function renderRoadmapProgress(elapsedTimeParam) {
   const roadmapContainer = document.getElementById('rep-roadmap');
   if (!roadmapContainer) return;
   
-  roadmapContainer.innerHTML = '';
+  // Initialize DOM if it's empty
+  if (roadmapContainer.children.length === 0) {
+    replicateStages.forEach((stage, idx) => {
+      const row = document.createElement('div');
+      row.id = `roadmap-row-${idx}`;
+      row.style.display = 'flex';
+      row.style.flexDirection = 'column';
+      row.style.padding = '8px 0';
+      row.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+      
+      row.innerHTML = `
+        <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 6px;" id="roadmap-text-${idx}">
+          <span style="font-family: monospace;">${stage.timeFormatted.substring(0, 5)}</span>
+          <span>${stage.note || 'Vertido'}</span>
+          <span>${stage.waterTarget ? stage.waterTarget + 'ml' : '-'}</span>
+        </div>
+        <div style="width: 100%; height: 4px; background-color: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden;">
+          <div id="roadmap-bar-${idx}" style="width: 0%; height: 100%; background-color: var(--color-accent); transition: width 0.1s linear;"></div>
+        </div>
+      `;
+      roadmapContainer.appendChild(row);
+    });
+  }
+
+  // Update logic (runs every 100ms)
   replicateStages.forEach((stage, idx) => {
-    const isPast = elapsedTime >= stage.timeMs;
+    const isPast = elapsedTimeParam >= stage.timeMs;
     const isCurrent = idx === nextStageIndex - 1;
     
-    const row = document.createElement('div');
-    row.style.display = 'flex';
-    row.style.justifyContent = 'space-between';
-    row.style.fontSize = '0.85rem';
-    row.style.padding = '4px 0';
-    row.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+    const textRow = document.getElementById(`roadmap-text-${idx}`);
+    const progressBar = document.getElementById(`roadmap-bar-${idx}`);
     
-    if (isPast && !isCurrent) {
-      row.style.opacity = '0.4';
-      row.style.textDecoration = 'line-through';
-    } else if (isCurrent) {
-      row.style.color = 'var(--color-accent)';
-      row.style.fontWeight = 'bold';
-    } else {
-      row.style.color = 'var(--color-text-secondary)';
-    }
+    if (textRow && progressBar) {
+      if (isPast && !isCurrent) {
+        textRow.style.opacity = '0.4';
+        textRow.style.textDecoration = 'line-through';
+      } else if (isCurrent) {
+        textRow.style.color = 'var(--color-accent)';
+        textRow.style.fontWeight = 'bold';
+        textRow.style.opacity = '1';
+        textRow.style.textDecoration = 'none';
+      } else {
+        textRow.style.color = 'var(--color-text-secondary)';
+        textRow.style.fontWeight = 'normal';
+        textRow.style.opacity = '1';
+        textRow.style.textDecoration = 'none';
+      }
 
-    row.innerHTML = `
-      <span style="font-family: monospace;">${stage.timeFormatted.substring(0, 5)}</span>
-      <span>${stage.note || 'Vertido'}</span>
-      <span>${stage.waterTarget ? stage.waterTarget + 'ml' : '-'}</span>
-    `;
-    roadmapContainer.appendChild(row);
+      // Calculate progress percentage
+      let progress = 0;
+      if (idx < nextStageIndex - 1 || (idx === replicateStages.length - 1 && isPast && !isCurrent)) {
+         progress = 100; // Past stages are full
+      } else if (isCurrent) {
+         let nextTime = 0;
+         if (idx < replicateStages.length - 1) {
+           nextTime = replicateStages[idx+1].timeMs;
+         } else {
+           nextTime = stage.timeMs + 5000; // Last visual step lasts 5 seconds before completion
+         }
+         const duration = nextTime - stage.timeMs;
+         progress = Math.min(100, Math.max(0, ((elapsedTimeParam - stage.timeMs) / duration) * 100));
+      }
+
+      progressBar.style.width = `${progress}%`;
+    }
   });
 }
 
@@ -671,6 +981,21 @@ function setupInteractivity() {
     });
   });
 
+  // Varietal Extra input logic
+  const varietalSelect = document.getElementById('bean-varietal');
+  const varietalExtra = document.getElementById('bean-varietal-extra');
+  varietalSelect.addEventListener('change', (e) => {
+    const val = e.target.value;
+    if (val === 'Blend / Mezcla' || val === 'Otra') {
+      varietalExtra.classList.remove('hidden');
+      varietalExtra.required = true;
+    } else {
+      varietalExtra.classList.add('hidden');
+      varietalExtra.required = false;
+      varietalExtra.value = '';
+    }
+  });
+
   // Rating Stars
   const stars = document.querySelectorAll('.rating-star');
   const cupRatingInput = document.getElementById('cup-rating');
@@ -752,10 +1077,15 @@ function setupForms() {
     submitBtn.disabled = true;
     submitBtn.textContent = 'Guardando...';
 
+    const baseVarietal = document.getElementById('bean-varietal').value;
+    const extraVarietal = document.getElementById('bean-varietal-extra').value.trim();
+    const finalVarietal = extraVarietal ? `${baseVarietal} (${extraVarietal})` : baseVarietal;
+
     const newTasting = {
       id: Date.now().toString(),
       extractionId: document.getElementById('cata-extraction').value,
       origin: document.getElementById('bean-origin').value,
+      varietal: finalVarietal,
       process: document.getElementById('bean-process').value,
       roastDate: document.getElementById('roast-date').value,
       flavors: selectedFlavors,
@@ -936,7 +1266,7 @@ function renderRecipes() {
 
         ${t ? `
         <div style="margin-top: 12px; font-size: 0.875rem; color: var(--color-text-secondary);">
-          <div style="margin-bottom: 4px;"><strong>Origen:</strong> ${t.origin} (${t.process})</div>
+          <div style="margin-bottom: 4px;"><strong>Origen:</strong> ${t.origin} ${t.varietal ? `<span style="color: var(--color-accent); font-weight: 500;">(${t.varietal})</span>` : ''} - ${t.process}</div>
           ${t.flavors.length > 0 ? `<div style="color: var(--color-accent)">Notas: ${t.flavors.join(', ')}</div>` : ''}
         </div>
         ` : ''}
@@ -960,7 +1290,30 @@ window.startReplication = function(recipeId) {
   // Setup Replication Mode State
   replicateMode = true;
   replicateStages = [...ext.pourStages].sort((a, b) => a.timeMs - b.timeMs);
+  
+  // Auto-Complete Logic: Ensure it starts at 00:00.0
+  if (replicateStages.length > 0 && replicateStages[0].timeMs > 0) {
+    // Force the first user-recorded lap to be the start of the recipe (00:00)
+    replicateStages[0].timeMs = 0;
+    replicateStages[0].timeFormatted = '00:00.0';
+  }
+
+  // Auto-Complete Logic: Ensure it has an explicit end based on total timer
+  if (ext.timeMs && replicateStages.length > 0) {
+    const lastStage = replicateStages[replicateStages.length - 1];
+    if (ext.timeMs > lastStage.timeMs + 2000) {
+      replicateStages.push({
+        id: 'auto-end',
+        timeMs: ext.timeMs,
+        timeFormatted: ext.timeFormatted,
+        note: 'Fin de Extracción',
+        waterTarget: '-'
+      });
+    }
+  }
+
   nextStageIndex = 0;
+  previousViewBeforeReplication = 'view-recetario';
   
   // Reset replication UI
   btnRepReset.click();
@@ -973,6 +1326,32 @@ window.startReplication = function(recipeId) {
   // Show initial message
   repTimerGuideDisplay.classList.remove('hidden');
   repTimerGuideDisplay.textContent = '¡Listo! Presiona Start para seguir la receta.';
+  
+  renderRoadmapProgress(0);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+window.startReplicationFromAI = function(v60RecipeId) {
+  const recipe = v60Recipes.find(r => r.id === v60RecipeId);
+  if (!recipe || !recipe.pourStages || recipe.pourStages.length === 0) return;
+
+  // Setup Replication Mode State
+  replicateMode = true;
+  replicateStages = [...recipe.pourStages].sort((a, b) => a.timeMs - b.timeMs);
+  nextStageIndex = 0;
+  previousViewBeforeReplication = 'view-inspiracion';
+  
+  // Reset replication UI
+  btnRepReset.click();
+
+  // Hide main views and nav, show replicar view
+  views.forEach(view => view.classList.add('hidden'));
+  document.querySelector('nav').classList.add('hidden');
+  document.getElementById('view-replicar').classList.remove('hidden');
+  
+  // Show initial message
+  repTimerGuideDisplay.classList.remove('hidden');
+  repTimerGuideDisplay.textContent = '¡Listo! Presiona Start para replicar la IA.';
   
   renderRoadmapProgress(0);
   window.scrollTo({ top: 0, behavior: 'smooth' });
