@@ -110,19 +110,29 @@ nav {
   align-items: center;
   gap: var(--spacing-xs);
   cursor: pointer;
-  transition: color var(--transition-fast);
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
   padding: var(--spacing-sm);
   flex: 1;
+  transform: scale(0.95);
+  opacity: 0.7;
 }
 
 .nav-item svg {
   width: 24px;
   height: 24px;
   fill: currentColor;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .nav-item.active {
   color: var(--color-accent);
+  transform: scale(1.1);
+  opacity: 1;
+  font-weight: 500;
+}
+
+.nav-item.active svg {
+  transform: translateY(-2px);
 }
 
 /* Cards & Surfaces */
@@ -406,6 +416,31 @@ input[type="range"]::-webkit-slider-runnable-track {
 
 .mt-md {
   margin-top: var(--spacing-md);
+}
+
+/* Inspiration Chips */
+.ingredient-chip {
+  padding: 6px 12px;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  user-select: none;
+}
+
+.ingredient-chip:hover {
+  background-color: var(--color-surface-hover);
+  border-color: var(--color-text-muted);
+}
+
+.ingredient-chip.active {
+  background-color: var(--color-accent);
+  color: #000;
+  border-color: var(--color-accent);
+  font-weight: 500;
 }
 
 /* Animations */

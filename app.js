@@ -51,6 +51,40 @@ function playBeep(freq = 440, type = 'sine', duration = 150) {
   }
 }
 
+// Inspiracion - Base de Datos Local de Recetas
+const espressoRecipes = [
+  { id: 1, name: "Iced Latte de Vainilla", description: "Refrescante, dulce y cremoso. Un clásico infalible.", req: ["Hielo", "Leche", "Jarabe de vainilla"], steps: ["Llena un vaso con Hielo.", "Añade 20g de Jarabe de vainilla.", "Vierte 150ml de Leche.", "Extrae un Espresso doble (aprox. 36g) encima de todo y revuelve."] },
+  { id: 2, name: "Mocha Helado", description: "El balance perfecto entre el amargor del café y el dulzor del chocolate.", req: ["Hielo", "Leche", "Jarabe de chocolate"], steps: ["En el fondo del vaso, añade 20g de Jarabe de chocolate.", "Extrae un Espresso doble directamente sobre el chocolate y revuelve para derretirlo.", "Añade Hielo.", "Rellena con 150ml de Leche y disfruta."] },
+  { id: 3, name: "Espresso Orange Tonic", description: "Burbujeante y cítrico. Ideal para tardes calurosas.", req: ["Hielo", "Naranja", "Agua Tónica"], steps: ["Coloca una rodaja gruesa de Naranja en el fondo del vaso.", "Agrega mucho Hielo.", "Vierte Agua Tónica (aprox. 120ml) lentamente para no perder gas.", "Extrae un Espresso doble y viértelo suavemente encima para crear capas."] },
+  { id: 4, name: "Cortado de Canela", description: "Pequeño pero poderoso, con un toque especiado reconfortante.", req: ["Leche", "Canela"], steps: ["Espuma 60ml de Leche caliente (textura sedosa).", "Extrae un Espresso doble (aprox 36g).", "Vierte la Leche sobre el Espresso.", "Espolvorea una pizca de Canela encima y sirve."] },
+  { id: 5, name: "Cold Brew con Espuma de Vainilla", description: "Café frío intenso coronado con una nube dulce.", req: ["Cold brew", "Hielo", "Leche", "Jarabe de vainilla"], steps: ["Sirve 150ml de Cold brew sobre Hielo.", "Aparte, mezcla 50ml de Leche fría con 15g de Jarabe de vainilla.", "Bate vigorosamente o usa un espumador manual para densificar la mezcla de leche.", "Vierte la espuma dulce encima del Cold Brew y a disfrutar."] },
+  { id: 6, name: "Latte de Chocolate y Canela", description: "Una bebida caliente abrazadora e indulgente.", req: ["Leche", "Cacao", "Canela"], steps: ["Mezcla 1 cucharadita de Cacao en polvo y una pizca de Canela con un poco de agua caliente para formar una pasta en la taza.", "Extrae un Espresso doble sobre la pasta y disuelve bien.", "Espuma 150ml de Leche caliente y vierte texturizando."] },
+  { id: 7, name: "Shakerato de Vainilla", description: "Espresso sacudido, espumoso y refrescante.", req: ["Hielo", "Jarabe de vainilla"], steps: ["En una coctelera (o tarro con tapa), agrega mucho Hielo.", "Vierte 15g de Jarabe de vainilla.", "Extrae un Espresso doble e inmediatamente échalo a la coctelera.", "Agita fuertemente por 15 segundos y sirve colando el hielo."] },
+  { id: 8, name: "Cold Brew Orange", description: "Un twist brillante al café extraído en frío usando el cítrico de la naranja.", req: ["Cold brew", "Naranja", "Hielo"], steps: ["Exprime el jugo de media Naranja en un vaso y agrega una rodaja.", "Añade Hielo.", "Vierte 150ml de tu Cold brew favorito."] },
+  { id: 9, name: "Dirty Chai", description: "Si tienes mezcla de Chai, esta es la versión rápida y deliciosa.", req: ["Leche", "Chai (polvo o concentrado)"], steps: ["Extrae un Espresso doble.", "Mezcla 150ml de Leche con el Chai y calienta o espuma.", "Vierte la leche especiada y espumada sobre el espresso."] },
+  { id: 10, name: "Mocha con Chispas", description: "Un capricho chocolatoso con textura crocante al final.", req: ["Leche", "Jarabe de chocolate", "Chispas de chocolate"], steps: ["Extrae el Espresso doble sobre 20g de Jarabe de chocolate.", "Espuma 150ml de Leche caliente y viértela sobre la base.", "Decora el tope de la espuma con abundantes Chispas de chocolate que se irán derritiendo lentamente."] },
+  { id: 11, name: "Iced Americano", description: "Fuerte, fresco y directo al grano.", req: ["Hielo"], steps: ["Llena un vaso de cristal con abundante Hielo.", "Rellena 3/4 partes con agua fría.", "Vierte un Espresso doble recién extraído en la parte superior para hacer notar las capas hermosas antes de mezclar."] },
+  { id: 12, name: "Naranja Moka Helado", description: "El chocolate y la naranja son una pareja espectacular.", req: ["Hielo", "Leche", "Jarabe de chocolate", "Naranja"], steps: ["En el fondo pon 20g de Jarabe de chocolate y una piel pequeña de Naranja machacada.", "Extrae el Espresso encima, mezcla con el chocolate caliente.", "Agrega hielo y por último 150ml de Leche fría."] },
+  { id: 13, name: "Cold Brew Dulce Rápido", description: "Sin complicaciones, frío y con un toque de dulzor.", req: ["Cold brew", "Hielo", "Jarabe simple"], steps: ["Vierte 200ml de Cold Brew sobre Hielo.", "Agrega de 10 a 20g de Jarabe simple según tu gusto y revuelve bien."] },
+  { id: 14, name: "Flat White", description: "Café intenso y textura de leche sedosa con microespuma fina.", req: ["Leche"], steps: ["Extrae un Espresso doble en una taza pequeña (~150ml).", "Espuma suavemente la Leche (menor grosor que un capuchino).", "Vierte la leche texturizada rápidamente sobre el espresso para mantener el sabor a café muy presente."] },
+  { id: 15, name: "Bicerin Minimalista", description: "Capas de magia italiana versionadas en casa.", req: ["Cacao", "Leche"], steps: ["Mezcla Cacao espeso en el fondo con un de poco de agua caliente.", "Capa intermedia de Espresso doble caliente.", "Capa superior de Leche fría batida sin mezclar. Bébete las capas de un sorbo."] },
+  { id: 16, name: "Caramel Macchiato", description: "Visualmente atractivo con capas de vainilla, leche, espresso y caramelo.", req: ["Leche", "Jarabe de vainilla", "Jarabe de caramelo"], steps: ["Añade 15g de Jarabe de vainilla en el fondo de la taza.", "Espuma 150ml de Leche caliente y viértela sobre la vainilla.", "Extrae el Espresso doble y viértelo lentamente por el centro para manchar la leche.", "Dibuja una red de Jarabe de caramelo sobre la espuma."] },
+  { id: 17, name: "Matcha Espresso Fusion", description: "La colisión de dos mundos: té verde terroso y café intenso.", req: ["Hielo", "Leche de avena", "Matcha en polvo", "Jarabe simple"], steps: ["Mezcla 2g de Matcha con 30ml de agua caliente y 10g de Jarabe simple hasta quitar grumos.", "En un vaso alto pon Hielo y vierte la mezcla de matcha.", "Agrega 120ml de Leche de avena muy suavemente.", "Extrae un Espresso doble y viértelo al final para una tercera capa."] },
+  { id: 18, name: "Oat Milk Honey Latte", description: "Suave, floral y reconfortante. El dulzor perfecto de la miel.", req: ["Leche de avena", "Miel"], steps: ["En tu taza, coloca 15g de Miel pura.", "Extrae un Espresso doble directo sobre la miel y revuelve para integrar.", "Espuma 150ml de Leche de avena (no la sobrecalientes).", "Vierte la leche sobre el espresso."] },
+  { id: 19, name: "Affogato Clásico", description: "El postre por excelencia del barista italiano.", req: ["Helado de vainilla"], steps: ["Coloca una bola grande y firme de Helado de vainilla en una taza mediana.", "Extrae un Espresso doble caliente directamente sobre el helado inmediatamente antes de servir."] },
+  { id: 20, name: "Café de Olla Espress", description: "Un tributo a México pero en máquina de espresso.", req: ["Canela", "Piloncillo (o panela)", "Clavo (opcional)"], steps: ["Rompe 15g de Piloncillo, una pizca de Canela y un Clavo en el fondo de la taza.", "Extrae el Espresso doble sobre las especias y deja infusionar por 1 minuto revolviendo.", "Añade un chorrito de agua caliente para aligerarlo (Americano corto)."] },
+  { id: 21, name: "Espresso Martini (Mocktail)", description: "Sofisticado, con espuma de bar, pero sin alcohol.", req: ["Hielo", "Jarabe simple"], steps: ["En una coctelera, coloca abundante Hielo, 15g de Jarabe simple y un Espresso doble recién extraído.", "Agita vigorosamente durante 20 segundos.", "Cuela finamente (doble colado idealmente) en una copa Martini y decora con 3 granos de café."] },
+  { id: 22, name: "Lavender Oat Latte", description: "Aromático y relajante. Tendencia en cafeterías indie.", req: ["Leche de avena", "Jarabe de lavanda"], steps: ["Agrega 15g de Jarabe de lavanda en la taza.", "Extrae el Espresso doble sobre el jarabe.", "Espuma 150ml de Leche de avena cuidando la textura.", "Vierte con arte latte y disfruta la fragancia."] },
+  { id: 23, name: "Cappuccino Tradicional", description: "El verdadero: 1/3 espresso, 1/3 leche, 1/3 espuma densa gruesa.", req: ["Leche"], steps: ["Extrae un Espresso sencillo (aprox 18g a 20g) en una taza de 150ml.", "Espuma la Leche incorporando mucho más aire que en un Latte.", "Vierte la leche terminando con una corona de espuma blanca en la superficie."] },
+  { id: 24, name: "Mazapán Latte", description: "Un toque mexicano de cacahuate (maní).", req: ["Leche", "Mazapán de cacahuate"], steps: ["Desmorona medio Mazapán (polvo de cacahuate) en el fondo de la taza.", "Extrae el Espresso doble para derretir la mezcla del dulce y revuelve vigorosamente.", "Espuma 150ml de Leche caliente y viértela encima. Espolvorea un poco de mazapán extra."] },
+  { id: 25, name: "Toasted Almond Latte", description: "Sabores de nuez exquisitos combinados con café.", req: ["Leche de almendra", "Jarabe de almendra tostada"], steps: ["Añade 15g de Jarabe de almendra a la taza.", "Extrae un Espresso doble y revuélvelo.", "Espuma Leche de almendras y vierte con cuidado. Adorna con almendras fileteadas (opcional)."] },
+  { id: 26, name: "Café Bombón", description: "Mitad espresso, mitad cielo muy dulce. Origen: España valenciana.", req: ["Leche condensada"], steps: ["En un vaso pequeño transparente, sirve 30-40ml de Leche condensada pura.", "Extrae un Espresso doble lentamente usando una cuchara invertida para que no se mezcle.", "Revuelve justo antes de beber."] },
+  { id: 27, name: "Peppermint Mocha", description: "Clásico de invierno: frescura mentolada con el choque del cacao.", req: ["Leche", "Jarabe de chocolate", "Jarabe de menta"], steps: ["En tu taza, mezcla 15g de Jarabe de chocolate oscuro y 10g de Jarabe de menta.", "Extrae un Espresso doble en la taza y revuelve bien.", "Espuma la Leche y vierte. Coronado con crema batida (opcional)."] },
+  { id: 28, name: "Pistachio Latte", description: "Verde, dulce cremoso y visualmente atractivo.", req: ["Leche", "Crema de pistache"], steps: ["Mezcla en la taza 15g de crema untable de Pistache con 5ml de agua caliente para aligerarlo.", "Extrae un Espresso doble encima y emulsiona.", "Espuma Leche regular texturizada y vierte. Sabor espectacular."] },
+  { id: 29, name: "Dirty Matcha Iced", description: "Matcha y Espresso, versión helada con un choque de energías.", req: ["Hielo", "Leche", "Matcha en polvo"], steps: ["Prepárate 30ml de Matcha concentrado disuelto en agua tibia.", "Llena un vaso con Hielo y Leche.", "Vierte el Matcha encima de la leche.", "Extrae un Espresso y viértelo flotando sobre el Matcha verde para hacer 3 capas."] },
+  { id: 30, name: "Espresso Cubano", description: "Un short shot inyectado con azúcar directamente en la pastilla o en la crema.", req: ["Azúcar morena"], steps: ["Prepara tu portafiltro con el café molido. Pon una capa fina de Azúcar morena en el fondo de la taza receptora (o arriba del disco de café).", "Extrae el Espresso (ristretto idealmente).", "La primera crema del café formará una 'espumita' increíblemente densa con el azúcar al revolver vigorosamente."] }
+];
+
 // SCA Flavor Wheel Data
 const scaData = [
   { category: 'Floral', color: '#eabae8', flavors: ['Manzanilla', 'Rosa', 'Jazmín'] },
@@ -94,8 +128,118 @@ let repTimerInterval;
 let isRepTimerRunning = false;
 let repStartTime = 0;
 let repElapsedTime = 0;
+// Inspiration Logic
+let selectedIngredients = [];
 
-// Initialize App
+function setupInspirationFilters() {
+  const container = document.getElementById('ingredient-chips');
+  container.innerHTML = '';
+  // Get unique ingredients from all recipes
+  const allReqs = espressoRecipes.flatMap(r => r.req);
+  const uniqueReqs = [...new Set(allReqs)].sort();
+
+  // Define categories
+  const categories = {
+    "Básicos y Lácteos": ["Hielo", "Leche", "Leche de almendra", "Leche de avena", "Cold brew", "Agua Tónica"],
+    "Jarabes y Salsas": ["Jarabe de chocolate", "Jarabe de vainilla", "Jarabe de caramelo", "Jarabe de almendra tostada", "Jarabe de menta", "Jarabe de lavanda", "Jarabe simple", "Leche condensada", "Miel", "Crema de pistache"],
+    "Polvos y Especias": ["Cacao", "Canela", "Matcha en polvo", "Chai (polvo o concentrado)", "Piloncillo (o panela)"],
+    "Extras y Toppings": ["Naranja", "Helado de vainilla", "Chispas de chocolate", "Azúcar morena", "Mazapán de cacahuate", "Clavo (opcional)"]
+  };
+
+  // Render by category
+  for (const [catName, catItems] of Object.entries(categories)) {
+    // Find which items in this category are actually used in our active recipes
+    const activeItems = catItems.filter(item => uniqueReqs.includes(item));
+    if (activeItems.length === 0) continue;
+
+    const catGroup = document.createElement('div');
+    catGroup.style.cssText = 'width: 100%; margin-bottom: 12px;';
+    
+    const catTitle = document.createElement('div');
+    catTitle.style.cssText = 'font-size: 0.75rem; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; font-weight: 500;';
+    catTitle.textContent = catName;
+    catGroup.appendChild(catTitle);
+
+    const chipsWrapper = document.createElement('div');
+    chipsWrapper.style.cssText = 'display: flex; flex-wrap: wrap; gap: 8px;';
+
+    activeItems.forEach(ing => {
+      const chip = document.createElement('div');
+      chip.className = 'ingredient-chip';
+      chip.textContent = ing;
+      chip.addEventListener('click', () => {
+        chip.classList.toggle('active');
+        if (chip.classList.contains('active')) {
+          selectedIngredients.push(ing);
+        } else {
+          selectedIngredients = selectedIngredients.filter(i => i !== ing);
+        }
+        filterAndRenderRecipes();
+      });
+      chipsWrapper.appendChild(chip);
+    });
+
+    catGroup.appendChild(chipsWrapper);
+    container.appendChild(catGroup);
+  }
+}
+
+function renderInspiration() {
+  // Daily Recipe Logic
+  const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 1000 / 60 / 60 / 24);
+  const dailyRecipeIndex = dayOfYear % espressoRecipes.length;
+  const dailyRecipe = espressoRecipes[dailyRecipeIndex];
+
+  document.getElementById('daily-recipe-name').textContent = dailyRecipe.name;
+  document.getElementById('daily-recipe-desc').textContent = dailyRecipe.description;
+  
+  const reqContainer = document.getElementById('daily-recipe-ingredients');
+  reqContainer.innerHTML = dailyRecipe.req.map(r => `<span style="background: rgba(212,138,53,0.2); color: var(--color-accent); padding: 2px 8px; border-radius: 4px; font-size: 0.7rem;">${r}</span>`).join('');
+  
+  const stepsContainer = document.getElementById('daily-recipe-steps');
+  stepsContainer.innerHTML = dailyRecipe.steps.map((s, i) => `<div style="margin-bottom: 4px;"><strong>${i+1}.</strong> ${s}</div>`).join('');
+
+  // Initial render of all recipes
+  filterAndRenderRecipes();
+}
+
+function filterAndRenderRecipes() {
+  const container = document.getElementById('inspiration-results');
+  const countLabel = document.getElementById('recipe-count');
+  container.innerHTML = '';
+
+  let filtered = espressoRecipes;
+  if (selectedIngredients.length > 0) {
+    // Show recipes that can be made with the selected ingredients (recipe reqs must be a subset of selected)
+    // Actually, a more forgiving filter: Show recipes that contain AT LEAST ONE of the selected ingredients.
+    filtered = espressoRecipes.filter(r => 
+      r.req.some(req => selectedIngredients.includes(req))
+    );
+  }
+
+  countLabel.textContent = `(${filtered.length})`;
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<div style="color: var(--color-text-muted); font-size: 0.9rem; padding: 20px; text-align: center;">No encontramos recetas exactas, ¡intenta mezclar otros ingredientes!</div>';
+    return;
+  }
+
+  filtered.forEach(recipe => {
+    const card = document.createElement('div');
+    card.style.cssText = 'background: var(--color-bg); padding: 16px; border-radius: var(--radius-sm); border: 1px solid var(--color-border);';
+    card.innerHTML = `
+      <div style="font-weight: 500; font-size: 1.1rem; margin-bottom: 4px; color: var(--color-text-primary);">${recipe.name}</div>
+      <div style="font-size: 0.85rem; color: var(--color-text-secondary); margin-bottom: 12px;">${recipe.description}</div>
+      <div style="font-size: 0.75rem; color: var(--color-accent); margin-bottom: 8px;">Necesitas: ${recipe.req.join(', ')}</div>
+      <div style="font-size: 0.85rem; color: var(--color-text-muted); border-left: 2px solid var(--color-border); padding-left: 10px;">
+        ${recipe.steps.map((s, i) => `<div style="margin-bottom: 4px;">${i+1}. ${s}</div>`).join('')}
+      </div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+// Initialize on load
 function init() {
   // DOM Elements
   navItems = document.querySelectorAll('.nav-item');
@@ -126,6 +270,8 @@ function init() {
   renderSCAFlavors();
   setupForms();
   setupInteractivity();
+  setupInspirationFilters();
+  renderInspiration();
   initFirebaseSync();
 }
 

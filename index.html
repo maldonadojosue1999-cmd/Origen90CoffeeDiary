@@ -201,6 +201,30 @@
           <div id="rep-roadmap"></div>
         </div>
       </section>
+      <!-- Inspiracion View -->
+      <section id="view-inspiracion" class="view-section hidden">
+        <div class="surface" style="margin-bottom: var(--spacing-md); background: linear-gradient(145deg, #1c1d21, #0a0a0c); border: 1px solid rgba(212, 138, 53, 0.3);">
+          <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: var(--color-accent); margin-bottom: 8px;">Receta del Día</div>
+          <h2 id="daily-recipe-name" style="margin-bottom: 8px; font-size: 1.5rem;">Cargando...</h2>
+          <p id="daily-recipe-desc" style="color: var(--color-text-secondary); font-size: 0.9rem; margin-bottom: 16px;">Descubriendo inspiración diaria...</p>
+          <div id="daily-recipe-ingredients" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;"></div>
+          <div id="daily-recipe-steps" style="font-size: 0.85rem; color: var(--color-text-muted); border-left: 2px solid var(--color-border); padding-left: 10px;"></div>
+        </div>
+
+        <div class="surface">
+          <h3 style="font-size: 1rem; font-weight: 500; margin-bottom: 12px; color: var(--color-text-primary);">¿Qué tienes en casa?</h3>
+          <p style="font-size: 0.8rem; color: var(--color-text-secondary); margin-bottom: 16px;">Selecciona tus ingredientes y la IA local sugerirá recetas para extraer.</p>
+          
+          <div id="ingredient-chips" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px;">
+            <!-- Rendered by JS -->
+          </div>
+
+          <h3 style="font-size: 1rem; font-weight: 500; margin-bottom: 16px; color: var(--color-text-primary);">Ideas Mágicas <span id="recipe-count" style="font-size: 0.8rem; color: var(--color-text-muted); font-weight: normal;"></span></h3>
+          <div id="inspiration-results" style="display: flex; flex-direction: column; gap: 12px;">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+      </section>
     </main>
 
     <nav>
@@ -215,6 +239,10 @@
       <button class="nav-item" data-target="view-recetario" data-title="Recetario Inteligente">
         <svg viewBox="0 0 24 24"><path d="M18 2H6C4.89 2 4 2.9 4 4V20C4 21.11 4.89 22 6 22H18C19.11 22 20 21.11 20 20V4C20 2.9 19.11 2 18 2M15 11H9V9H15V11M15 7H9V5H15V7Z"/></svg>
         <span>Recetario</span>
+      </button>
+      <button class="nav-item" data-target="view-inspiracion" data-title="Ideas para preparar">
+        <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12,2A7,7 0 0,0 5,9C5,11.38 6.19,13.47 8,14.74V17A1,1 0 0,0 9,18H15A1,1 0 0,0 16,17V14.74C17.81,13.47 19,11.38 19,9A7,7 0 0,0 12,2M9,21A1,1 0 0,0 10,22H14A1,1 0 0,0 15,21V20H9V21Z"/></svg>
+        <span>Descubre</span>
       </button>
     </nav>
   <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
