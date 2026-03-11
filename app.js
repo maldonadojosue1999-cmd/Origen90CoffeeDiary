@@ -996,6 +996,18 @@ function setupInteractivity() {
     }
   });
 
+  // SCA Metrics Sliders
+  const metrics = ['sweetness', 'acidity', 'clarity', 'aftertaste'];
+  metrics.forEach(m => {
+    const slider = document.getElementById(`metric-${m}`);
+    const display = document.getElementById(`val-${m}`);
+    if (slider && display) {
+      slider.addEventListener('input', (e) => {
+        display.textContent = e.target.value;
+      });
+    }
+  });
+
   // Rating Stars
   const stars = document.querySelectorAll('.rating-star');
   const cupRatingInput = document.getElementById('cup-rating');
@@ -1016,7 +1028,23 @@ function setupInteractivity() {
   // Method change hook for Smart Recommendations
   const methodSelect = document.getElementById('method');
   methodSelect.addEventListener('change', handleMethodChange);
+
+  // Edit Recipe Modal closing
+  document.getElementById('btn-close-edit').addEventListener('click', () => {
+    document.getElementById('edit-recipe-modal').classList.add('hidden');
+  });
+
+  // Recetario Filters
+  document.querySelectorAll('#recetario-filters .chip').forEach(chip => {
+    chip.addEventListener('click', (e) => {
+      document.querySelectorAll('#recetario-filters .chip').forEach(c => c.classList.remove('selected'));
+      e.target.classList.add('selected');
+      currentRecetarioFilter = e.target.dataset.filter;
+      renderRecipes();
+    });
+  });
 }
+let currentRecetarioFilter = 'all';
 
 function setupForms() {
   // Bitácora Submit
@@ -1081,6 +1109,13 @@ function setupForms() {
     const extraVarietal = document.getElementById('bean-varietal-extra').value.trim();
     const finalVarietal = extraVarietal ? `${baseVarietal} (${extraVarietal})` : baseVarietal;
 
+    const metricsData = {
+      sweetness: parseInt(document.getElementById('metric-sweetness').value || 3),
+      acidity: parseInt(document.getElementById('metric-acidity').value || 3),
+      clarity: parseInt(document.getElementById('metric-clarity').value || 3),
+      aftertaste: parseInt(document.getElementById('metric-aftertaste').value || 3)
+    };
+
     const newTasting = {
       id: Date.now().toString(),
       extractionId: document.getElementById('cata-extraction').value,
@@ -1089,6 +1124,7 @@ function setupForms() {
       process: document.getElementById('bean-process').value,
       roastDate: document.getElementById('roast-date').value,
       flavors: selectedFlavors,
+      metrics: metricsData,
       rating: parseInt(rating)
     };
 
@@ -1099,7 +1135,8 @@ function setupForms() {
       document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
       document.querySelectorAll('.rating-star').forEach(s => s.classList.remove('active'));
       document.getElementById('cup-rating').value = 0;
-      alert('Evaluación guardada.');
+      metrics.forEach(m => document.getElementById(`val-${m}`).textContent = '3');
+      alert('Cata guardada exitosamente.');
     } catch (error) {
       console.error("Error guardando cata:", error);
       alert('Hubo un error al guardar la cata.');
@@ -1108,6 +1145,47 @@ function setupForms() {
       submitBtn.textContent = 'Guardar Evaluación';
     }
   });
+
+  // Edit Recipe Submit
+  const formEditRecipe = document.getElementById('form-edit-recipe');
+  if (formEditRecipe) {
+    formEditRecipe.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const firebaseId = document.getElementById('edit-recipe-id').value;
+      if (!firebaseId) return;
+
+      const submitBtn = formEditRecipe.querySelector('button[type="submit"]');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Guardando...';
+
+      // Auto calculate ratio based on new coffee/water values
+      const c = parseFloat(document.getElementById('edit-coffee-weight').value);
+      const w = parseFloat(document.getElementById('edit-water-weight').value);
+      const ratio = c > 0 && w > 0 ? (w / c).toFixed(1) : 0;
+
+      const updates = {
+        method: document.getElementById('edit-method').value,
+        coffeeWeight: document.getElementById('edit-coffee-weight').value,
+        waterWeight: document.getElementById('edit-water-weight').value,
+        ratio: ratio,
+        grindSize: document.getElementById('edit-grind-size').value,
+        timeFormatted: document.getElementById('edit-time').value,
+        notes: document.getElementById('edit-notes').value
+      };
+
+      try {
+        await db.collection("extractions").doc(firebaseId).update(updates);
+        document.getElementById('edit-recipe-modal').classList.add('hidden');
+        alert('Receta actualizada correctamente.');
+      } catch (error) {
+        console.error("Error updating recipe:", error);
+        alert('Error al actualizar la receta.');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Guardar Cambios';
+      }
+    });
+  }
 }
 
 function updateExtractionDropdown() {
@@ -1132,12 +1210,17 @@ function updateExtractionDropdown() {
 
 /* Global functions for recipe deletion */
 window.deleteRecipe = async function(extractionId) {
-  if (confirm('¿Estás seguro de que deseas eliminar esta receta y su calificación?')) {
+  if (confirm('¿Estás seguro de eliminar esta receta? También se eliminarán las catas asociadas.')) {
     try {
       const ext = extractions.find(ex => ex.id === extractionId);
       if (ext && ext.firebaseId) {
         await db.collection("extractions").doc(ext.firebaseId).delete();
       }
+      
+      // Local state update for immediate feedback
+      extractions = extractions.filter(e => e.id !== extractionId);
+      renderRecipes();
+      updateExtractionDropdown();
       
       const tastingMatches = tastings.filter(t => t.extractionId === extractionId);
       for (const t of tastingMatches) {
@@ -1150,6 +1233,43 @@ window.deleteRecipe = async function(extractionId) {
       alert('Hubo un error al eliminar la receta.');
     }
   }
+};
+
+window.toggleFavorite = async function(extractionId) {
+  const ext = extractions.find(e => e.id === extractionId);
+  if (!ext || !ext.firebaseId) return;
+
+  const newFavStatus = !ext.isFavorite;
+  
+  // Optimistic UI update
+  ext.isFavorite = newFavStatus;
+  renderRecipes();
+
+  try {
+    await db.collection("extractions").doc(ext.firebaseId).update({
+      isFavorite: newFavStatus
+    });
+  } catch (error) {
+    console.error("Error updating favorite status:", error);
+    // Revert optimistic update
+    ext.isFavorite = !newFavStatus;
+    renderRecipes();
+  }
+};
+
+window.openEditModal = function(extractionId) {
+  const ext = extractions.find(e => e.id === extractionId);
+  if (!ext) return;
+
+  document.getElementById('edit-recipe-id').value = ext.firebaseId;
+  document.getElementById('edit-method').value = ext.method;
+  document.getElementById('edit-coffee-weight').value = ext.coffeeWeight;
+  document.getElementById('edit-water-weight').value = ext.waterWeight;
+  document.getElementById('edit-grind-size').value = ext.grindSize;
+  document.getElementById('edit-time').value = ext.timeFormatted;
+  document.getElementById('edit-notes').value = ext.notes || '';
+
+  document.getElementById('edit-recipe-modal').classList.remove('hidden');
 };
 
 function renderSCAFlavors() {
@@ -1185,15 +1305,26 @@ function renderSCAFlavors() {
 
 function renderRecipes() {
   const recipeList = document.getElementById('recipe-list');
-  if (extractions.length === 0) {
-    recipeList.innerHTML = `<div class="text-center" style="color: var(--color-text-muted); margin-top: 2rem;">Aún no hay recetas guardadas.</div>`;
+  
+  // Apply Filter
+  let filteredExtractions = extractions;
+  if (currentRecetarioFilter === 'favorites') {
+    filteredExtractions = extractions.filter(e => e.isFavorite);
+  }
+
+  if (filteredExtractions.length === 0) {
+    if (currentRecetarioFilter === 'favorites') {
+      recipeList.innerHTML = `<div class="text-center" style="color: var(--color-text-muted); margin-top: 2rem;">No tienes recetas marcadas como favoritas.</div>`;
+    } else {
+      recipeList.innerHTML = `<div class="text-center" style="color: var(--color-text-muted); margin-top: 2rem;">Aún no hay recetas guardadas.</div>`;
+    }
     return;
   }
 
   recipeList.innerHTML = '';
   
   // Sort by newest
-  const sortedExtractions = [...extractions].sort((a,b) => b.id - a.id);
+  const sortedExtractions = [...filteredExtractions].sort((a,b) => b.id - a.id);
 
   sortedExtractions.forEach(ext => {
     const t = tastings.find(t => t.extractionId === ext.id);
@@ -1208,11 +1339,21 @@ function renderRecipes() {
       ratingStars = `<div style="color: var(--color-text-muted); font-size: 0.875rem;">Sin calificar</div>`;
     }
 
+    const isFav = ext.isFavorite;
+    const heartIcon = isFav 
+      ? `<svg width="22" height="22" viewBox="0 0 24 24" style="color: #e74c3c;"><path fill="currentColor" d="M12,21.35L10.55,20.03C5.4,15.36 2,12.28 2,8.5C2,5.42 4.42,3 7.5,3C9.24,3 10.91,3.81 12,5.09C13.09,3.81 14.76,3 16.5,3C19.58,3 22,5.42 22,8.5C22,12.28 18.6,15.36 13.45,20.04L12,21.35Z"/></svg>`
+      : `<svg width="22" height="22" viewBox="0 0 24 24" style="color: var(--color-text-secondary);"><path fill="currentColor" d="M12.1,18.55L12,18.65L11.89,18.55C7.14,14.24 4,11.39 4,8.5C4,6.5 5.5,5 7.5,5C9.04,5 10.54,6 11.07,7.36H12.93C13.46,6 14.96,5 16.5,5C18.5,5 20,6.5 20,8.5C20,11.39 16.86,14.24 12.1,18.55M16.5,3C14.76,3 13.09,3.81 12,5.08C10.91,3.81 9.24,3 7.5,3C4.42,3 2,5.41 2,8.5C2,12.27 5.4,15.36 10.55,20.03L12,21.35L13.45,20.03C18.6,15.36 22,12.27 22,8.5C22,5.41 19.58,3 16.5,3Z"/></svg>`;
+
     const html = `
-      <div class="surface">
+      <div class="surface ${isFav ? 'favorite-glow' : ''}" style="${isFav ? 'border-color: rgba(231, 76, 60, 0.3);' : ''}">
         <div class="recipe-card-header">
           <div style="display: flex; flex-direction: column; gap: 4px;">
-            <div class="recipe-method">${ext.method}</div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <div class="recipe-method">${ext.method}</div>
+              <button onclick="window.toggleFavorite('${ext.id}')" style="background:none; border:none; padding: 2px; cursor: pointer; display: flex; align-items: center;">
+                ${heartIcon}
+              </button>
+            </div>
             <div class="recipe-date">${dateStr}</div>
           </div>
           <div style="display: flex; align-items: center; gap: 12px;">
@@ -1222,9 +1363,14 @@ function renderRecipes() {
                 Replicar
               </button>
             ` : ''}
-            <button class="btn btn-danger" style="padding: 4px 8px;" onclick="window.deleteRecipe('${ext.id}')" title="Eliminar receta">
-              <svg width="18" height="18" viewBox="0 0 24 24"><path fill="currentColor" d="M19 4H15.5L14.5 3H9.5L8.5 4H5V6H19M6 19C6 20.1 6.9 21 8 21H16C17.1 21 18 20.1 18 19V7H6V19Z"/></svg>
-            </button>
+            <div style="display: flex; gap: 4px;">
+              <button class="btn" style="padding: 4px 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);" onclick="window.openEditModal('${ext.id}')" title="Editar receta">
+                <svg width="18" height="18" viewBox="0 0 24 24"><path fill="currentColor" d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z" /></svg>
+              </button>
+              <button class="btn btn-danger" style="padding: 4px 8px;" onclick="window.deleteRecipe('${ext.id}')" title="Eliminar receta">
+                <svg width="18" height="18" viewBox="0 0 24 24"><path fill="currentColor" d="M19 4H15.5L14.5 3H9.5L8.5 4H5V6H19M6 19C6 20.1 6.9 21 8 21H16C17.1 21 18 20.1 18 19V7H6V19Z"/></svg>
+              </button>
+            </div>
           </div>
         </div>
         
@@ -1267,7 +1413,15 @@ function renderRecipes() {
         ${t ? `
         <div style="margin-top: 12px; font-size: 0.875rem; color: var(--color-text-secondary);">
           <div style="margin-bottom: 4px;"><strong>Origen:</strong> ${t.origin} ${t.varietal ? `<span style="color: var(--color-accent); font-weight: 500;">(${t.varietal})</span>` : ''} - ${t.process}</div>
-          ${t.flavors.length > 0 ? `<div style="color: var(--color-accent)">Notas: ${t.flavors.join(', ')}</div>` : ''}
+          ${t.flavors.length > 0 ? `<div style="margin-bottom: 4px; color: var(--color-accent)">Notas: ${t.flavors.join(', ')}</div>` : ''}
+          ${t.metrics ? `
+          <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.05); display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+            <div style="font-size: 0.75rem;"><span style="color: var(--color-text-muted);">Dulzor:</span> <span style="color: var(--color-success); font-weight: 600;">${t.metrics.sweetness}/5</span></div>
+            <div style="font-size: 0.75rem;"><span style="color: var(--color-text-muted);">Acidez:</span> <span style="color: var(--color-success); font-weight: 600;">${t.metrics.acidity}/5</span></div>
+            <div style="font-size: 0.75rem;"><span style="color: var(--color-text-muted);">Claridad:</span> <span style="color: var(--color-success); font-weight: 600;">${t.metrics.clarity}/5</span></div>
+            <div style="font-size: 0.75rem;"><span style="color: var(--color-text-muted);">Postgusto:</span> <span style="color: var(--color-success); font-weight: 600;">${t.metrics.aftertaste}/5</span></div>
+          </div>
+          ` : ''}
         </div>
         ` : ''}
         
