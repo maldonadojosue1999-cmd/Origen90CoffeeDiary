@@ -1008,18 +1008,47 @@ function setupInteractivity() {
     }
   });
 
-  // Rating Stars
+  // Rating Stars (Half-Star Logic)
   const stars = document.querySelectorAll('.rating-star');
   const cupRatingInput = document.getElementById('cup-rating');
   stars.forEach(star => {
     star.addEventListener('click', (e) => {
-      const rating = parseInt(star.getAttribute('data-rating'));
-      cupRatingInput.value = rating;
+      const starValue = parseInt(star.getAttribute('data-rating'));
+      let currentRating = parseFloat(cupRatingInput.value) || 0;
+      
+      let newRating;
+      // If clicking the current highest full star, drop it to a half star
+      if (currentRating === starValue) {
+        newRating = starValue - 0.5;
+      } 
+      // If clicking the current highest half star, bump it to full star
+      else if (currentRating === starValue - 0.5) {
+        newRating = starValue;
+      } 
+      // Otherwise, jump straight to full star
+      else {
+        newRating = starValue;
+      }
+      
+      cupRatingInput.value = newRating;
+      
+      // Update visual stars
       stars.forEach(s => {
-        if (parseInt(s.getAttribute('data-rating')) <= rating) {
+        const sVal = parseInt(s.getAttribute('data-rating'));
+        s.innerHTML = ''; // Clear SVG
+        s.classList.remove('active');
+        
+        if (sVal <= newRating) {
+          // Full Star SVG
           s.classList.add('active');
+          s.innerHTML = `<svg viewBox="0 0 24 24"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>`;
+        } else if (sVal - 0.5 === newRating) {
+          // Half Star SVG
+          s.classList.add('active');
+          s.innerHTML = `<svg viewBox="0 0 24 24"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" opacity="0.4"/><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" clip-path="polygon(0 0, 50% 0, 50% 100%, 0 100%)"/></svg>`;
         } else {
-          s.classList.remove('active');
+          // Empty Star SVG
+          s.innerHTML = `<svg viewBox="0 0 24 24"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor" fill-opacity="0.3"/></svg>`;
         }
       });
     });
@@ -1043,8 +1072,21 @@ function setupInteractivity() {
       renderRecipes();
     });
   });
+  
+  // Advanced Recetario Dropdowns
+  document.getElementById('filter-sort').addEventListener('change', (e) => {
+    currentSortOrder = e.target.value;
+    renderRecipes();
+  });
+  
+  document.getElementById('filter-method').addEventListener('change', (e) => {
+    currentMethodFilter = e.target.value;
+    renderRecipes();
+  });
 }
 let currentRecetarioFilter = 'all';
+let currentSortOrder = 'date_desc';
+let currentMethodFilter = 'all';
 
 function setupForms() {
   // Bitácora Submit
@@ -1133,8 +1175,14 @@ function setupForms() {
       // Reset Form
       formCata.reset();
       document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
-      document.querySelectorAll('.rating-star').forEach(s => s.classList.remove('active'));
+      
+      const starsReset = document.querySelectorAll('.rating-star');
+      starsReset.forEach(s => {
+        s.classList.remove('active');
+        s.innerHTML = `<svg viewBox="0 0 24 24"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor" fill-opacity="0.3"/></svg>`;
+      });
       document.getElementById('cup-rating').value = 0;
+      
       metrics.forEach(m => document.getElementById(`val-${m}`).textContent = '3');
       alert('Cata guardada exitosamente.');
     } catch (error) {
@@ -1322,19 +1370,50 @@ function renderRecipes() {
   }
 
   recipeList.innerHTML = '';
+  let sortedExtractions = [...filteredExtractions];
   
-  // Sort by newest
-  const sortedExtractions = [...filteredExtractions].sort((a,b) => b.id - a.id);
+  // Method Filter
+  if (currentMethodFilter !== 'all') {
+    sortedExtractions = sortedExtractions.filter(e => e.method === currentMethodFilter);
+  }
+
+  // Sorting
+  if (currentSortOrder === 'date_desc') {
+    sortedExtractions.sort((a,b) => b.id - a.id);
+  } else if (currentSortOrder === 'date_asc') {
+    sortedExtractions.sort((a,b) => a.id - b.id);
+  } else if (currentSortOrder === 'rating_desc') {
+    sortedExtractions.sort((a,b) => {
+      const tA = tastings.find(t => t.extractionId === a.id);
+      const tB = tastings.find(t => t.extractionId === b.id);
+      const rA = tA ? (tA.rating || 0) : 0;
+      const rB = tB ? (tB.rating || 0) : 0;
+      return rB - rA; // High to Low
+    });
+  }
+
+  if (sortedExtractions.length === 0) {
+    recipeList.innerHTML = `<div class="text-center" style="color: var(--color-text-muted); margin-top: 2rem;">No hay recetas que coincidan con los filtros.</div>`;
+    return;
+  }
 
   sortedExtractions.forEach(ext => {
     const t = tastings.find(t => t.extractionId === ext.id);
     const dateStr = new Date(ext.date).toLocaleDateString([], { dateStyle: 'long' });
     
     let ratingStars = '';
-    if (t) {
-      const activeStars = '★'.repeat(t.rating);
-      const inactiveStars = '☆'.repeat(5 - t.rating);
-      ratingStars = `<div style="color: var(--color-accent); font-size: 1.25rem;">${activeStars}<span style="color: var(--color-text-muted)">${inactiveStars}</span></div>`;
+    if (t && t.rating > 0) {
+      const fullStars = Math.floor(t.rating);
+      const hasHalfStar = (t.rating % 1) !== 0;
+      const emptyStars = 5 - Math.ceil(t.rating);
+      
+      let htmlOutput = '';
+      for(let i=0; i<fullStars; i++) htmlOutput += '★';
+      if(hasHalfStar) htmlOutput += '<svg width="20" height="20" viewBox="0 0 24 24" style="vertical-align: text-bottom; margin: 0; display: inline-block; transform: translateY(2px);"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor" opacity="0.4"/><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor" clip-path="polygon(0 0, 50% 0, 50% 100%, 0 100%)"/></svg>';
+      for(let i=0; i<emptyStars; i++) htmlOutput += '<span style="color: var(--color-text-muted); font-size: 1.1rem;">☆</span>';
+      
+      // Combine it with the numeric metric
+      ratingStars = `<div style="color: var(--color-accent); font-size: 1.25rem; display: flex; align-items: center;">${htmlOutput} <span style="font-size: 0.95rem; margin-left: 6px; color: var(--color-text-primary); font-weight: 700;">${t.rating.toFixed(1)}</span></div>`;
     } else {
       ratingStars = `<div style="color: var(--color-text-muted); font-size: 0.875rem;">Sin calificar</div>`;
     }
