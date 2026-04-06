@@ -405,34 +405,7 @@ function analyzeUserBeans() {
   }
 }
 
-// Masterclass Tab System
-document.getElementById('tab-ia-parati').addEventListener('click', () => {
-  document.getElementById('tab-ia-parati').classList.add('active-tab-ia');
-  document.getElementById('tab-ia-parati').style.color = 'var(--color-success)';
-  document.getElementById('tab-ia-parati').style.borderBottomColor = 'var(--color-success)';
-  
-  document.getElementById('tab-ia-catalogo').classList.remove('active-tab-ia');
-  document.getElementById('tab-ia-catalogo').style.color = 'var(--color-text-secondary)';
-  document.getElementById('tab-ia-catalogo').style.borderBottomColor = 'transparent';
-
-  document.getElementById('ai-suggester-content').classList.remove('hidden');
-  document.getElementById('ai-catalog-content').classList.add('hidden');
-});
-
-document.getElementById('tab-ia-catalogo').addEventListener('click', () => {
-  document.getElementById('tab-ia-catalogo').classList.add('active-tab-ia');
-  document.getElementById('tab-ia-catalogo').style.color = 'var(--color-success)';
-  document.getElementById('tab-ia-catalogo').style.borderBottomColor = 'var(--color-success)';
-  
-  document.getElementById('tab-ia-parati').classList.remove('active-tab-ia');
-  document.getElementById('tab-ia-parati').style.color = 'var(--color-text-secondary)';
-  document.getElementById('tab-ia-parati').style.borderBottomColor = 'transparent';
-
-  document.getElementById('ai-suggester-content').classList.add('hidden');
-  document.getElementById('ai-catalog-content').classList.remove('hidden');
-  
-  renderMasterCatalog('Todos');
-});
+// (Masterclass Tabs system removed since Noni handles the IA now and the catalog is the only view)
 
 // Catalog Filters
 document.querySelectorAll('#ai-catalog-filters .chip').forEach(chip => {
@@ -548,7 +521,19 @@ function init() {
 
 function initFirebaseSync() {
   db.collection("extractions").onSnapshot((snapshot) => {
-    extractions = snapshot.docs.map(d => ({ firebaseId: d.id, ...d.data() }));
+    extractions = snapshot.docs.map(d => {
+      const data = d.data();
+      let safeDate = data.date;
+      if (!safeDate || isNaN(new Date(safeDate).getTime())) {
+          safeDate = new Date().toISOString(); // Fallback valid ISO
+      }
+      return { 
+        ...data,
+        firebaseId: d.id, 
+        id: data.id || Date.parse(safeDate).toString(), 
+        date: safeDate
+      };
+    });
     updateExtractionDropdown();
     renderRecipes();
   });
@@ -719,6 +704,25 @@ function setupReplicationTimer() {
     document.getElementById(previousViewBeforeReplication).classList.remove('hidden');
     document.querySelector('nav').classList.remove('hidden'); // Show bottom nav again
   });
+
+  const btnRepNextAction = document.getElementById('btn-rep-next-action');
+  if (btnRepNextAction) {
+    btnRepNextAction.addEventListener('click', () => {
+      nextStageIndex++;
+      repStartTime = Date.now() - repElapsedTime;
+      
+      document.getElementById('rep-timer-display').classList.remove('hidden');
+      document.getElementById('rep-timer-controls').classList.remove('hidden');
+      document.getElementById('rep-action-display').classList.add('hidden');
+      
+      if (nextStageIndex < replicateStages.length) {
+          btnRepStart.click(); 
+      } else {
+          // Auto-stop since it was the last stage
+          updateRepTimerUI();
+      }
+    });
+  }
 }
 
 function updateRepTimerUI() {
@@ -728,6 +732,24 @@ function updateRepTimerUI() {
     if (replicateStages.length > 0) {
       if (nextStageIndex < replicateStages.length) {
         const stage = replicateStages[nextStageIndex];
+
+        // Intercept Action Steps
+        if (stage.type === 'action') {
+          if (repElapsedTime >= stage.timeMs) {
+            clearInterval(repTimerInterval);
+            isRepTimerRunning = false;
+            
+            document.getElementById('rep-timer-display').classList.add('hidden');
+            document.getElementById('rep-timer-controls').classList.add('hidden');
+            document.getElementById('rep-action-display').classList.remove('hidden');
+            
+            document.getElementById('rep-action-note').textContent = stage.note || 'Paso completado';
+            repTimerGuideDisplay.textContent = "Esperando tu confirmación...";
+            repTimerGuideDisplay.style.color = 'var(--color-primary)';
+            return;
+          }
+        }
+
         const timeToNext = stage.timeMs - repElapsedTime;
         
         if (timeToNext <= 3000 && timeToNext > 0) {
@@ -809,7 +831,7 @@ function renderRoadmapProgress(elapsedTimeParam) {
   // Update logic (runs every 100ms)
   replicateStages.forEach((stage, idx) => {
     const isPast = elapsedTimeParam >= stage.timeMs;
-    const isCurrent = idx === nextStageIndex - 1;
+    const isCurrent = isPast && (idx === replicateStages.length - 1 || elapsedTimeParam < replicateStages[idx + 1].timeMs);
     
     const textRow = document.getElementById(`roadmap-text-${idx}`);
     const progressBar = document.getElementById(`roadmap-bar-${idx}`);
@@ -1379,16 +1401,19 @@ function renderRecipes() {
 
   // Sorting
   if (currentSortOrder === 'date_desc') {
-    sortedExtractions.sort((a,b) => b.id - a.id);
+    sortedExtractions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   } else if (currentSortOrder === 'date_asc') {
-    sortedExtractions.sort((a,b) => a.id - b.id);
+    sortedExtractions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   } else if (currentSortOrder === 'rating_desc') {
     sortedExtractions.sort((a,b) => {
       const tA = tastings.find(t => t.extractionId === a.id);
       const tB = tastings.find(t => t.extractionId === b.id);
       const rA = tA ? (tA.rating || 0) : 0;
       const rB = tB ? (tB.rating || 0) : 0;
-      return rB - rA; // High to Low
+      
+      if (rA !== rB) return rB - rA; // High to Low
+      // Fallback to date if ratings tie
+      return new Date(b.date).getTime() - new Date(a.date).getTime();
     });
   }
 
@@ -1398,65 +1423,83 @@ function renderRecipes() {
   }
 
   sortedExtractions.forEach(ext => {
-    const t = tastings.find(t => t.extractionId === ext.id);
-    const dateStr = new Date(ext.date).toLocaleDateString([], { dateStyle: 'long' });
-    
-    let ratingStars = '';
-    if (t && t.rating > 0) {
-      const fullStars = Math.floor(t.rating);
-      const hasHalfStar = (t.rating % 1) !== 0;
-      const emptyStars = 5 - Math.ceil(t.rating);
+    try {
+      const t = tastings.find(t => t.extractionId === ext.id);
       
-      let htmlOutput = '';
-      for(let i=0; i<fullStars; i++) htmlOutput += '★';
-      if(hasHalfStar) htmlOutput += '<svg width="20" height="20" viewBox="0 0 24 24" style="vertical-align: text-bottom; margin: 0; display: inline-block; transform: translateY(2px);"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor" opacity="0.4"/><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor" clip-path="polygon(0 0, 50% 0, 50% 100%, 0 100%)"/></svg>';
-      for(let i=0; i<emptyStars; i++) htmlOutput += '<span style="color: var(--color-text-muted); font-size: 1.1rem;">☆</span>';
+      // Safe Date parsing
+      const extractedDate = new Date(ext.date);
+      const dateStr = !isNaN(extractedDate.getTime()) 
+          ? extractedDate.toLocaleDateString([], { dateStyle: 'long' }) 
+          : 'Fecha Desconocida';
       
-      // Combine it with the numeric metric
-      ratingStars = `<div style="color: var(--color-accent); font-size: 1.25rem; display: flex; align-items: center;">${htmlOutput} <span style="font-size: 0.95rem; margin-left: 6px; color: var(--color-text-primary); font-weight: 700;">${t.rating.toFixed(1)}</span></div>`;
-    } else {
-      ratingStars = `<div style="color: var(--color-text-muted); font-size: 0.875rem;">Sin calificar</div>`;
-    }
+      let ratingStars = '';
+      if (t && t.rating > 0) {
+        const fullStars = Math.floor(t.rating);
+        const hasHalfStar = (t.rating % 1) !== 0;
+        const emptyStars = 5 - Math.ceil(t.rating);
+        
+        let htmlOutput = '';
+        for(let i=0; i<fullStars; i++) htmlOutput += '★';
+        if(hasHalfStar) htmlOutput += '<svg width="20" height="20" viewBox="0 0 24 24" style="vertical-align: text-bottom; margin: 0; display: inline-block; transform: translateY(2px);"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor" opacity="0.4"/><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor" clip-path="polygon(0 0, 50% 0, 50% 100%, 0 100%)"/></svg>';
+        for(let i=0; i<emptyStars; i++) htmlOutput += '<span style="color: var(--color-text-muted); font-size: 1.1rem;">☆</span>';
+        
+        ratingStars = `<div style="color: var(--color-accent); font-size: 1.25rem; display: flex; align-items: center;">${htmlOutput} <span style="font-size: 0.95rem; margin-left: 6px; color: var(--color-text-primary); font-weight: 700;">${t.rating.toFixed(1)}</span></div>`;
+      } else {
+        ratingStars = `<div style="color: var(--color-text-muted); font-size: 0.875rem;">Sin calificar</div>`;
+      }
 
-    const isFav = ext.isFavorite;
-    const heartIcon = isFav 
-      ? `<svg width="22" height="22" viewBox="0 0 24 24" style="color: #e74c3c;"><path fill="currentColor" d="M12,21.35L10.55,20.03C5.4,15.36 2,12.28 2,8.5C2,5.42 4.42,3 7.5,3C9.24,3 10.91,3.81 12,5.09C13.09,3.81 14.76,3 16.5,3C19.58,3 22,5.42 22,8.5C22,12.28 18.6,15.36 13.45,20.04L12,21.35Z"/></svg>`
-      : `<svg width="22" height="22" viewBox="0 0 24 24" style="color: var(--color-text-secondary);"><path fill="currentColor" d="M12.1,18.55L12,18.65L11.89,18.55C7.14,14.24 4,11.39 4,8.5C4,6.5 5.5,5 7.5,5C9.04,5 10.54,6 11.07,7.36H12.93C13.46,6 14.96,5 16.5,5C18.5,5 20,6.5 20,8.5C20,11.39 16.86,14.24 12.1,18.55M16.5,3C14.76,3 13.09,3.81 12,5.08C10.91,3.81 9.24,3 7.5,3C4.42,3 2,5.41 2,8.5C2,12.27 5.4,15.36 10.55,20.03L12,21.35L13.45,20.03C18.6,15.36 22,12.27 22,8.5C22,5.41 19.58,3 16.5,3Z"/></svg>`;
+      const isFav = ext.isFavorite;
+      const heartIcon = isFav 
+        ? `<svg width="22" height="22" viewBox="0 0 24 24" style="color: #e74c3c;"><path fill="currentColor" d="M12,21.35L10.55,20.03C5.4,15.36 2,12.28 2,8.5C2,5.42 4.42,3 7.5,3C9.24,3 10.91,3.81 12,5.09C13.09,3.81 14.76,3 16.5,3C19.58,3 22,5.42 22,8.5C22,12.28 18.6,15.36 13.45,20.04L12,21.35Z"/></svg>`
+        : `<svg width="22" height="22" viewBox="0 0 24 24" style="color: var(--color-text-secondary);"><path fill="currentColor" d="M12.1,18.55L12,18.65L11.89,18.55C7.14,14.24 4,11.39 4,8.5C4,6.5 5.5,5 7.5,5C9.04,5 10.54,6 11.07,7.36H12.93C13.46,6 14.96,5 16.5,5C18.5,5 20,6.5 20,8.5C20,11.39 16.86,14.24 12.1,18.55M16.5,3C14.76,3 13.09,3.81 12,5.08C10.91,3.81 9.24,3 7.5,3C4.42,3 2,5.41 2,8.5C2,12.27 5.4,15.36 10.55,20.03L12,21.35L13.45,20.03C18.6,15.36 22,12.27 22,8.5C22,5.41 19.58,3 16.5,3Z"/></svg>`;
 
-    const html = `
-      <div class="surface ${isFav ? 'favorite-glow' : ''}" style="${isFav ? 'border-color: rgba(231, 76, 60, 0.3);' : ''}">
-        <div class="recipe-card-header">
-          <div style="display: flex; flex-direction: column; gap: 4px;">
-            <div style="display: flex; align-items: center; gap: 6px;">
-              <div class="recipe-method">${ext.method}</div>
-              <button onclick="window.toggleFavorite('${ext.id}')" style="background:none; border:none; padding: 2px; cursor: pointer; display: flex; align-items: center;">
-                ${heartIcon}
-              </button>
+      const html = `
+        <div class="surface ${isFav ? 'favorite-glow' : ''}" style="${isFav ? 'border-color: rgba(231, 76, 60, 0.3);' : ''}">
+          <div class="recipe-card-header">
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <div class="recipe-method">${ext.method || 'Método Desconocido'}
+                  ${ext.isFromNoni ? `<span style="font-size: 0.7rem; color: #a18cf5; background: rgba(161, 140, 245, 0.1); border: 1px solid rgba(161, 140, 245, 0.3); padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; margin-left: 6px;">✨ Creado por Noni</span>` : ''}
+                </div>
+                <button onclick="window.toggleFavorite('${ext.id}')" style="background:none; border:none; padding: 2px; cursor: pointer; display: flex; align-items: center;">
+                  ${heartIcon}
+                </button>
+              </div>
+              <div class="recipe-date">${dateStr}</div>
             </div>
-            <div class="recipe-date">${dateStr}</div>
+            <div style="display: flex; align-items: center; gap: 12px;">
+              ${ratingStars}
+              ${(ext.isFromNoni && (!t || t.rating === 0)) ? `
+                <button class="btn" style="padding: 4px 12px; font-size: 0.8rem; background: var(--color-surface); color: var(--color-accent); border: 1px solid var(--color-accent);" onclick="window.rateRecipe('${ext.id}')">
+                  Valorar
+                </button>
+              ` : ''}
+              ${ext.pourStages && ext.pourStages.length > 0 ? `
+                <button class="btn btn-primary" style="padding: 4px 12px; font-size: 0.8rem;" onclick="window.startReplication('${ext.id}')">
+                  Replicar
+                </button>` : ''}
+            </div>
           </div>
-          <div style="display: flex; align-items: center; gap: 12px;">
-            ${ratingStars}
-            ${ext.pourStages && ext.pourStages.length > 0 ? `
-              <button class="btn btn-primary" style="padding: 4px 12px; font-size: 0.8rem;" onclick="window.startReplication('${ext.id}')">
-                Replicar
+          <div class="recipe-card-body">
+            <div class="recipe-card-grid">
+              <div class="grid-item"><div class="grid-label">Café (g)</div><div class="grid-value">${ext.coffeeWeight}</div></div>
+              <div class="grid-item"><div class="grid-label">Agua (ml)</div><div class="grid-value">${ext.waterWeight}</div></div>
+              <div class="grid-item"><div class="grid-label">Ratio</div><div class="grid-value">1:${ext.ratio}</div></div>
+              <div class="grid-item"><div class="grid-label">Molienda</div><div class="grid-value">${ext.grindSize}</div></div>
+              <div class="grid-item"><div class="grid-label">Tiempo</div><div class="grid-value" style="font-family: monospace;">${ext.timeFormatted || '00:00.0'}</div></div>
+              <div class="grid-item"><div class="grid-label">Temp (ºC)</div><div class="grid-value">${ext.temperature || '--'}</div></div>
+            </div>
+            ${ext.notes ? `<div style="font-size: 0.85rem; color: var(--color-text-secondary); margin-top: 12px;"><strong>Notas:</strong> ${ext.notes}</div>` : ''}
+            <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px;">
+              <button class="btn" style="padding: 4px 12px; font-size: 0.8rem; background: rgba(255,255,255,0.05); color: var(--color-text-secondary);" onclick="window.openEditModal('${ext.id}')">
+                Editar
               </button>
-            ` : ''}
-            <div style="display: flex; gap: 4px;">
-              <button class="btn" style="padding: 4px 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);" onclick="window.openEditModal('${ext.id}')" title="Editar receta">
-                <svg width="18" height="18" viewBox="0 0 24 24"><path fill="currentColor" d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z" /></svg>
-              </button>
-              <button class="btn btn-danger" style="padding: 4px 8px;" onclick="window.deleteRecipe('${ext.id}')" title="Eliminar receta">
+              <button class="btn" style="padding: 6px; color: var(--color-danger);" onclick="window.deleteRecipe('${ext.id}')">
                 <svg width="18" height="18" viewBox="0 0 24 24"><path fill="currentColor" d="M19 4H15.5L14.5 3H9.5L8.5 4H5V6H19M6 19C6 20.1 6.9 21 8 21H16C17.1 21 18 20.1 18 19V7H6V19Z"/></svg>
               </button>
             </div>
           </div>
         </div>
-        
-        <div class="recipe-stats">
-          <div class="recipe-stat">
-            <span>Ratio</span>
-            1:${ext.ratio}
           </div>
           <div class="recipe-stat">
             <span>Dosis</span>
@@ -1481,7 +1524,7 @@ function renderRecipes() {
           <div style="font-size: 0.75rem; color: var(--color-text-secondary); margin-bottom: 6px; text-transform: uppercase;">Vertidos Registrados</div>
           ${ext.pourStages.map(stage => `
             <div style="display: flex; justify-content: space-between; font-size: 0.85rem; padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
-              <span style="color: var(--color-accent); font-family: monospace;">${stage.timeFormatted.substring(0, 5)}</span>
+              <span style="color: var(--color-accent); font-family: monospace;">${(stage.timeFormatted || '00:00').substring(0, 5)}</span>
               <span style="color: var(--color-text-primary);">${stage.note || 'Vertido'}</span>
               <span style="color: var(--color-text-secondary);">${stage.waterTarget ? stage.waterTarget + 'ml' : '-'}</span>
             </div>
@@ -1512,7 +1555,13 @@ function renderRecipes() {
       </div>
     `;
     
-    recipeList.insertAdjacentHTML('beforeend', html);
+    const card = document.createElement('div');
+    card.innerHTML = html;
+    recipeList.appendChild(card);
+    } catch (e) {
+      console.error("Error renderizando tarjeta de receta:", e, ext);
+      alert("Error UI: " + e.message);
+    }
   });
 }
 
@@ -1523,6 +1572,16 @@ window.startReplication = function(recipeId) {
   // Setup Replication Mode State
   replicateMode = true;
   replicateStages = [...ext.pourStages].sort((a, b) => a.timeMs - b.timeMs);
+  
+  const instructionsList = document.getElementById('rep-instructions-list');
+  if (instructionsList) {
+    if (ext.steps && ext.steps.length > 0) {
+      instructionsList.innerHTML = `<ul style="margin: 0; padding-left: 16px;">${ext.steps.map(s => `<li>${s}</li>`).join('')}</ul>`;
+      instructionsList.classList.remove('hidden');
+    } else {
+      instructionsList.classList.add('hidden');
+    }
+  }
   
   // Auto-Complete Logic: Ensure it starts at 00:00.0
   if (replicateStages.length > 0 && replicateStages[0].timeMs > 0) {
@@ -1590,5 +1649,247 @@ window.startReplicationFromAI = function(v60RecipeId) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
+/* --- NONI IA - GEMINI ENGINE --- */
+async function getNoniResponse(userQuery, systemPrompt = "Eres Noni, un barista experto.") {
+  const apiKey = localStorage.getItem('gemini_api_key');
+  if (!apiKey) {
+    throw new Error("API_KEY_MISSING");
+  }
+  
+  const model = "gemini-2.5-flash";
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+  const payload = {
+    contents: [{ parts: [{ text: userQuery }] }],
+    systemInstruction: { parts: [{ text: systemPrompt }] }
+  };
+
+  let retries = 0;
+  const maxRetries = 2;
+  const delay = (ms) => new Promise(res => setTimeout(res, ms));
+
+  while (retries < maxRetries) {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errText}`);
+      }
+      
+      const data = await response.json();
+      const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      
+      if (!aiText) throw new Error("Respuesta vacía de la API");
+      return aiText;
+    } catch (error) {
+      retries++;
+      if (retries === maxRetries) {
+        console.error("Error Noni IA:", error);
+        throw error;
+      }
+      await delay(Math.pow(2, retries - 1) * 1000);
+    }
+  }
+}
+
+// UI Setup For Settings and Noni Chat Drawer
+function setupNoniAndSettings() {
+  const btnSettings = document.getElementById('btn-settings');
+  const btnCloseSettings = document.getElementById('btn-close-settings');
+  const settingsModal = document.getElementById('settings-modal');
+  const formSettings = document.getElementById('form-settings');
+  const apiKeyInput = document.getElementById('settings-gemini-key');
+
+  if(btnSettings) {
+    btnSettings.addEventListener('click', () => {
+      apiKeyInput.value = localStorage.getItem('gemini_api_key') || '';
+      settingsModal.classList.remove('hidden');
+    });
+  }
+  
+  if(btnCloseSettings) {
+    btnCloseSettings.addEventListener('click', () => settingsModal.classList.add('hidden'));
+  }
+
+  if(formSettings) {
+    formSettings.addEventListener('submit', (e) => {
+      e.preventDefault();
+      localStorage.setItem('gemini_api_key', apiKeyInput.value.trim());
+      settingsModal.classList.add('hidden');
+      alert('Ajustes guardados correctamente.');
+    });
+  }
+
+  // Noni Drawer & FAB Logic
+  const noniFab = document.getElementById('noni-fab');
+  const noniDrawer = document.getElementById('noni-drawer');
+  const closeNoniBtn = document.getElementById('btn-close-noni');
+
+  if(noniFab && noniDrawer) {
+    noniFab.addEventListener('click', () => {
+      const isOpen = noniDrawer.classList.contains('open');
+      if(isOpen) {
+        noniDrawer.classList.remove('open');
+        noniFab.classList.add('sleeping');
+      } else {
+        noniDrawer.classList.add('open');
+        noniFab.classList.remove('sleeping');
+        document.getElementById('noni-input').focus();
+      }
+    });
+  }
+
+  if(closeNoniBtn) {
+    closeNoniBtn.addEventListener('click', () => {
+      noniDrawer.classList.remove('open');
+      noniFab.classList.add('sleeping');
+    });
+  }
+
+  // Noni Chat Logic
+  const formNoni = document.getElementById('form-noni-chat');
+  const noniInput = document.getElementById('noni-input');
+  const noniChatBox = document.getElementById('noni-chat-box');
+
+  if(formNoni) {
+    formNoni.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const query = noniInput.value.trim();
+      if(!query) return;
+
+      // Ensure API key
+      if(!localStorage.getItem('gemini_api_key')) {
+        alert("¡Guau! Necesito que configures mi llave de Gemini (API Key) en los ajustes ⚙️ para tener cerebro.");
+        return;
+      }
+
+      // Append User message
+      const userBubble = document.createElement('div');
+      userBubble.style.cssText = "align-self: flex-end; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 10px 14px; border-radius: 12px 12px 0 12px; max-width: 85%; font-size: 0.9rem;";
+      userBubble.textContent = query;
+      noniChatBox.appendChild(userBubble);
+      noniInput.value = '';
+      noniChatBox.scrollTop = noniChatBox.scrollHeight;
+
+      // Append Noni Loading
+      const typingBubble = document.createElement('div');
+      typingBubble.style.cssText = "align-self: flex-start; background: rgba(106, 191, 99, 0.1); border: 1px solid rgba(106, 191, 99, 0.3); padding: 10px 14px; border-radius: 12px 12px 12px 0; max-width: 85%; font-size: 0.9rem; color: var(--color-text-secondary);";
+      typingBubble.innerHTML = `<strong style="color: var(--color-success); display: block; margin-bottom: 4px; font-size: 0.8rem;">Noni</strong>Pensando... 🐾`;
+      noniChatBox.appendChild(typingBubble);
+      noniChatBox.scrollTop = noniChatBox.scrollHeight;
+
+      // Build context
+      const recentTastings = tastings.slice(-3).map(t => {
+        const ext = extractions.find(ex => ex.id === t.extractionId);
+        return ext ? `Tomó ${t.varietal} en ${ext.method} con molienda ${ext.grindSize}, calificado ${t.rating} estrellas.` : '';
+      }).filter(Boolean).join(" ");
+      const systemContext = `Eres Noni, una inteligente y tierna mascota virtual experta en café. Usas expresiones tiernas de modo suave (¡Glu!, 🐾). Respalda tus recomendaciones con ciencia (molienda, ratios). El usuario usa la app 'Origen 90 Coffee Diary'. Contexto reciente de sus cafés: ${recentTastings || "Ninguno."}\nREGLA ESTRICTA: Si el usuario te pide una receta, siempre genera al final EXACTAMENTE este bloque de código JSON (inventa los parámetros cronológicamente). El array "steps" es SOLO para preparaciones PREVIAS al cronómetro (hervir agua, moler, lavar filtro). El array "stages" DEBE contener TODOS los pasos interactivos dentro del cronómetro divididos en milisegundos, ya sea de tipo "timer" (vertidos) o "action" (acciones manuales como revolver o presionar AeroPress): \`\`\`json\n{"method": "V60", "coffeeWeight": 15, "waterWeight": 250, "grindSize": 45, "timeFormatted": "02:30.0", "notes": "Disfruta las notas florales.", "steps": ["1. Hierve agua a 93°C", "2. Enjuaga filtro"], "stages": [{ "type": "timer", "timeMs": 0, "timeFormatted": "00:00.0", "note": "Bloom", "waterTarget": 50 }, { "type": "timer", "timeMs": 30000, "timeFormatted": "00:30.0", "note": "Segundo vertido", "waterTarget": 150 }, { "type": "action", "timeMs": 90000, "timeFormatted": "01:30.0", "note": "Revolver suavemente", "waterTarget": 250 } ]}\n\`\`\` No incluyas JSON si hace preguntas generales.`;
+
+      try {
+        const responseText = await getNoniResponse(query, systemContext);
+        
+        // Extract JSON using robust Regex for markdown codeblocks
+        const jsonMatch = responseText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/i);
+        let visibleText = responseText;
+        let saveButtonHtml = "";
+
+        if (jsonMatch && jsonMatch[1]) {
+          visibleText = responseText.replace(jsonMatch[0], '').trim();
+          
+          const suggestionId = 'rec_' + Date.now();
+          window.noniSuggestions = window.noniSuggestions || {};
+          window.noniSuggestions[suggestionId] = jsonMatch[1];
+          
+          saveButtonHtml = `
+            <button onclick="window.saveNoniRecipe('${suggestionId}')" style="margin-top: 12px; width: 100%; padding: 8px; background: rgba(106, 191, 99, 0.1); border: 1px solid var(--color-success); color: var(--color-success); border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 500; transition: all 0.2s;">
+              <svg width="18" height="18" viewBox="0 0 24 24"><path fill="currentColor" d="M15,9H5V5H15M12,19A3,3 0 0,1 9,16A3,3 0 0,1 12,13A3,3 0 0,1 15,16A3,3 0 0,1 12,19M17,3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V7L17,3Z"/></svg>
+              Guardar en Recetario
+            </button>
+          `;
+        }
+
+        typingBubble.innerHTML = `<strong style="color: var(--color-success); display: block; margin-bottom: 4px; font-size: 0.8rem;">Noni</strong>${visibleText}${saveButtonHtml}`;
+      } catch (e) {
+        if (e.message === "API_KEY_MISSING") {
+          typingBubble.innerHTML = `<strong style="color: var(--color-danger); display: block; margin-bottom: 4px; font-size: 0.8rem;">Error</strong>Falta la API Key en ajustes.`;
+        } else {
+          typingBubble.innerHTML = `<strong style="color: var(--color-danger); display: block; margin-bottom: 4px; font-size: 0.8rem;">Error del Servidor</strong>${e.message}<br><br><span style="font-size: 0.7rem; color: var(--color-text-secondary);">Guau... revisa que tu llave no tenga espacios.</span>`;
+        }
+      }
+      noniChatBox.scrollTop = noniChatBox.scrollHeight;
+    });
+  }
+}
+
+// Global hook for the injected button
+window.saveNoniRecipe = async function(suggestionId) {
+  if (!window.noniSuggestions || !window.noniSuggestions[suggestionId]) return;
+  const jsonString = window.noniSuggestions[suggestionId];
+  try {
+    const rawData = JSON.parse(jsonString);
+    const dateStr = new Date().toISOString();
+    const newExt = {
+      id: Date.now().toString(),
+      date: dateStr,
+      method: rawData.method || "Desconocido",
+      grindSize: rawData.grindSize || 0,
+      coffeeWeight: rawData.coffeeWeight || 0,
+      waterWeight: rawData.waterWeight || 0,
+      ratio: rawData.coffeeWeight > 0 ? (rawData.waterWeight / rawData.coffeeWeight).toFixed(1) : 0,
+      timeFormatted: rawData.timeFormatted || "00:00.0",
+      timeMs: 0,
+      notes: rawData.notes || "Receta sugerida por la mascota Noni.",
+      isFavorite: false,
+      isFromNoni: true,
+      steps: rawData.steps || [],
+      pourStages: (rawData.stages || []).map(s => {
+        if (s.timeFormatted) return s;
+        const ms = s.timeMs || 0;
+        const mins = Math.floor(ms / 60000).toString().padStart(2, '0');
+        const secs = Math.floor((ms % 60000) / 1000).toString().padStart(2, '0');
+        return { ...s, timeFormatted: `${mins}:${secs}.0` };
+      })
+    };
+    await db.collection("extractions").add(newExt);
+    alert('¡Receta guardada en tu Recetario!');
+    
+    // Auto-close Noni UI after saving
+    const drawer = document.getElementById('noni-drawer');
+    const fab = document.getElementById('noni-fab');
+    if (drawer) drawer.classList.remove('open');
+    if (fab) fab.classList.add('sleeping');
+    
+  } catch(e) {
+    console.error("Error saving Noni recipe:", e);
+    alert("Error al guardar la receta. Puede que el código de Noni haya estado corrupto.");
+  }
+};
+
+window.rateRecipe = function(recipeId) {
+  // Switch to Cata tab
+  const cataTab = document.querySelector('.nav-item[data-target="view-cata"]');
+  if (cataTab) cataTab.click();
+  
+  // Set the dropdown to the specific recipe
+  setTimeout(() => {
+    const select = document.getElementById('extraction-select');
+    if (select) {
+      select.value = recipeId;
+      // Trigger change event to populate fields if needed
+      select.dispatchEvent(new Event('change'));
+      
+      // Auto-focus sliders
+      const slider = document.getElementById('metric-sweetness');
+      if (slider) slider.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, 100);
+};
+
 // Start app
+setupNoniAndSettings();
 init();

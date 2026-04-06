@@ -57,10 +57,16 @@
 </head>
 <body>
   <div id="app">
-    <header>
-      <h1>Origen 90 Coffee Diary</h1>
-      <p id="header-subtitle">Bitácora de Extracción</p>
-      <div style="font-size: 0.7rem; color: var(--color-text-secondary); margin-top: 4px; letter-spacing: 0.5px;">Desarrollado por <span style="color: var(--color-text-primary);">Josue Maldonado</span></div>
+    <header style="display: flex; justify-content: space-between; align-items: flex-start; padding-top: 8px;">
+      <div style="width: 40px;"></div> <!-- Compensación geométrica -->
+      <div style="text-align: center;">
+        <h1 style="margin: 0; font-size: 1.8rem;">Origen 90 Coffee Diary</h1>
+        <p id="header-subtitle" style="margin: 0; font-size: 1rem;">Bitácora de Extracción</p>
+        <div style="font-size: 0.75rem; color: var(--color-text-secondary); margin-top: 6px; letter-spacing: 0.5px;">Desarrollado por <span style="color: var(--color-text-primary);">Josue Maldonado</span></div>
+      </div>
+      <button id="btn-settings" aria-label="Ajustes" style="background: transparent; border: none; color: var(--color-text-secondary); cursor: pointer; padding: 8px;">
+        <svg width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z" /></svg>
+      </button>
     </header>
 
     <main id="main-content">
@@ -303,10 +309,18 @@
             <div style="width: 44px;"></div> <!-- Spacer for flex alignment -->
           </div>
 
+          <div id="rep-instructions-list" class="hidden" style="margin-bottom: 16px; padding: 12px; background: rgba(255,255,255,0.03); border-radius: 8px; font-size: 0.85rem; color: var(--color-text-secondary); text-align: left;"></div>
+
           <div id="rep-timer-guide-display" class="hidden"></div>
           <div id="rep-timer-display" style="font-size: 2.5rem; font-family: monospace; font-weight: 700; color: var(--color-text-primary); margin: 12px 0; text-shadow: 0 0 10px rgba(0,0,0,0.5);">00:00.0</div>
           
-          <div class="timer-controls">
+          <!-- Action Button for Manual Steps -->
+          <div id="rep-action-display" class="hidden" style="margin: 16px 0;">
+            <div id="rep-action-note" style="font-size: 1.5rem; font-weight: 600; color: var(--color-accent); margin-bottom: 16px;">Acción Manual</div>
+            <button type="button" id="btn-rep-next-action" class="btn btn-primary" style="padding: 12px 24px; font-size: 1.1rem; width: 100%; border-radius: 12px;">Completado <svg width="20" height="20" viewBox="0 0 24 24" style="vertical-align: middle; margin-left: 8px;"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg></button>
+          </div>
+
+          <div class="timer-controls" id="rep-timer-controls">
             <button type="button" id="btn-rep-start" class="btn btn-primary" style="flex:1;">Start</button>
             <button type="button" id="btn-rep-stop" class="btn hidden" style="flex:1;">Stop</button>
             <button type="button" id="btn-rep-reset" class="btn btn-danger hidden" style="flex:1;">Reset</button>
@@ -336,21 +350,17 @@
           
           <!-- Tabs Header -->
           <div style="display: flex; border-bottom: 1px solid rgba(106, 191, 99, 0.2);">
-            <button id="tab-ia-parati" class="btn active-tab-ia" style="flex: 1; border-radius: 0; background: transparent; padding: 12px; font-size: 0.85rem; font-weight: 600; color: var(--color-success); border-bottom: 2px solid var(--color-success); transition: all 0.2s;">
-              <svg width="18" height="18" viewBox="0 0 24 24" style="vertical-align: text-bottom; margin-right: 4px;"><path fill="currentColor" d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
-              Para Ti
-            </button>
-            <button id="tab-ia-catalogo" class="btn" style="flex: 1; border-radius: 0; background: transparent; padding: 12px; font-size: 0.85rem; font-weight: 500; color: var(--color-text-secondary); border-bottom: 2px solid transparent; transition: all 0.2s;">
+            <button id="tab-ia-catalogo" class="btn active-tab-ia" style="flex: 1; border-radius: 0; background: transparent; padding: 12px; font-size: 0.85rem; font-weight: 500; color: var(--color-success); border-bottom: 2px solid var(--color-success); transition: all 0.2s;">
               <svg width="18" height="18" viewBox="0 0 24 24" style="vertical-align: text-bottom; margin-right: 4px;"><path fill="currentColor" d="M12 3C7.03 3 3 7.03 3 12S7.03 21 12 21 21 16.97 21 12 16.97 3 12 3M17 13H13V17H11V13H7V11H11V7H13V11H17V13Z"/></svg>
-              Catálogo
+              Biografía de Recetas
             </button>
           </div>
           
-          <!-- Content: Para Ti -->
+          <!-- Content: Sugerencias IA (Rendered by JS) -->
           <div id="ai-suggester-content" style="padding: 16px;"></div>
 
           <!-- Content: Catalogo -->
-          <div id="ai-catalog-content" class="hidden" style="padding: 16px;">
+          <div id="ai-catalog-content" style="padding: 16px; border-top: 1px solid rgba(106, 191, 99, 0.2);">
             <div style="font-size: 0.85rem; color: var(--color-text-secondary); margin-bottom: 12px;">Explora recetas maestras para todos tus métodos.</div>
             
             <!-- Filters -->
@@ -456,6 +466,65 @@
           <button type="submit" class="btn btn-primary btn-full mt-md">Guardar Cambios</button>
         </form>
       </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px;">
+      <div class="surface" style="width: 100%; max-width: 400px; border: 1px solid var(--color-border); position: relative;">
+        <button type="button" id="btn-close-settings" style="position: absolute; top: 12px; right: 12px; background: transparent; border: none; color: var(--color-text-secondary); padding: 4px;">
+          <svg width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" /></svg>
+        </button>
+        <h2 style="font-size: 1.25rem; margin-bottom: 8px; margin-top: 4px;">Ajustes de la App</h2>
+        <p style="font-size: 0.85rem; color: var(--color-text-muted); margin-bottom: 20px;">
+          Configura tus llaves e integraciones avanzadas para potenciar tu diario.
+        </p>
+
+        <form id="form-settings">
+          <div class="form-group">
+            <label for="settings-gemini-key">Gemini API Key (Noni IA)</label>
+            <input type="password" id="settings-gemini-key" placeholder="AIzaSy...">
+            <div style="font-size: 0.75rem; color: var(--color-text-secondary); margin-top: 4px;">
+              Tu llave se almacena de forma segura en tu propio navegador.
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-full mt-md">Guardar Ajustes</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Noni The Floating Mascot -->
+    <div id="noni-fab" class="noni-fab sleeping" title="Habla con Noni">
+      <svg width="32" height="32" viewBox="0 0 24 24" style="color: var(--color-success);"><path fill="currentColor" d="M12,2A9,9 0 0,0 3,11C3,14.03 4.53,16.82 7,18.47V22H17V18.47C19.47,16.82 21,14.03 21,11A9,9 0 0,0 12,2M8,11A2,2 0 0,1 10,13A2,2 0 0,1 8,15A2,2 0 0,1 6,13A2,2 0 0,1 8,11M16,11A2,2 0 0,1 18,13A2,2 0 0,1 16,15A2,2 0 0,1 14,13A2,2 0 0,1 16,11M12,14.5C13.5,14.5 15.8,15.53 16.4,16.85C15.2,17.8 13.67,18.5 12,18.5C10.33,18.5 8.8,17.8 7.6,16.85C8.2,15.53 10.5,14.5 12,14.5Z"/></svg>
+    </div>
+
+    <!-- Noni Chat Drawer -->
+    <div id="noni-drawer" class="noni-drawer">
+      <div class="noni-drawer-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <svg width="24" height="24" viewBox="0 0 24 24" style="color: var(--color-success);"><path fill="currentColor" d="M12,2A9,9 0 0,0 3,11C3,14.03 4.53,16.82 7,18.47V22H17V18.47C19.47,16.82 21,14.03 21,11A9,9 0 0,0 12,2M8,11A2,2 0 0,1 10,13A2,2 0 0,1 8,15A2,2 0 0,1 6,13A2,2 0 0,1 8,11M16,11A2,2 0 0,1 18,13A2,2 0 0,1 16,15A2,2 0 0,1 14,13A2,2 0 0,1 16,11M12,14.5C13.5,14.5 15.8,15.53 16.4,16.85C15.2,17.8 13.67,18.5 12,18.5C10.33,18.5 8.8,17.8 7.6,16.85C8.2,15.53 10.5,14.5 12,14.5Z"/></svg>
+          <div>
+            <strong style="color: var(--color-success); display: block; font-size: 0.95rem;">Noni</strong>
+            <span style="font-size: 0.7rem; color: var(--color-text-secondary);">Mascota Barista</span>
+          </div>
+        </div>
+        <button type="button" id="btn-close-noni" style="background: transparent; border: none; color: var(--color-text-secondary); cursor: pointer; padding: 4px;">
+          <svg width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" /></svg>
+        </button>
+      </div>
+
+      <div id="noni-chat-box" style="height: 300px; max-height: 50vh; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; scrollbar-width: thin; scrollbar-color: var(--color-success) transparent;">
+        <!-- Noni Default Welcome -->
+        <div style="align-self: flex-start; background: rgba(106, 191, 99, 0.1); border: 1px solid rgba(106, 191, 99, 0.3); padding: 10px 14px; border-radius: 12px 12px 12px 0; max-width: 85%; font-size: 0.9rem;">
+          ¡Guauf! 🐾 Digo... ¡Glu, glu! Soy Noni. Pregúntame sobre ratios, métodos o recetas. ¡O pídeme que te recomiende algo según tus últimas catas!
+        </div>
+      </div>
+      
+      <form id="form-noni-chat" style="display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--color-border); background: var(--color-surface); border-radius: 0 0 20px 20px;">
+        <input type="text" id="noni-input" placeholder="Dile algo a Noni..." required style="flex: 1; background: rgba(0,0,0,0.3); border: 1px solid var(--color-border); border-radius: 20px; padding: 10px 14px; font-size: 0.9rem; color: var(--color-text-primary);">
+        <button type="submit" class="btn" style="background: var(--color-success); color: #000; border-radius: 50%; width: 40px; height: 40px; padding: 0; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <svg width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M2,21L23,12L2,3V10L17,12L2,14V21Z"/></svg>
+        </button>
+      </form>
     </div>
 
   <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
