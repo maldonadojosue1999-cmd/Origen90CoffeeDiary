@@ -320,26 +320,128 @@ function setupInspirationFilters() {
   }
 }
 
-function renderInspiration() {
-  // Daily Recipe Logic
-  const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 1000 / 60 / 60 / 24);
-  const dailyRecipeIndex = dayOfYear % espressoRecipes.length;
-  const dailyRecipe = espressoRecipes[dailyRecipeIndex];
+async function renderInspiration() {
+  const currentDateStr = new Date().toDateString();
+  const cachedRecipeStr = localStorage.getItem('daily_noni_recipe');
+  const cachedDate = localStorage.getItem('daily_noni_date');
+  const apiKey = localStorage.getItem('gemini_api_key');
 
-  document.getElementById('daily-recipe-name').textContent = dailyRecipe.name;
-  document.getElementById('daily-recipe-desc').textContent = dailyRecipe.description;
-  
+  const titleEl = document.getElementById('daily-recipe-name');
+  const descEl = document.getElementById('daily-recipe-desc');
   const reqContainer = document.getElementById('daily-recipe-ingredients');
-  reqContainer.innerHTML = dailyRecipe.req.map(r => `<span style="background: rgba(212,138,53,0.2); color: var(--color-accent); padding: 2px 8px; border-radius: 4px; font-size: 0.7rem;">${r}</span>`).join('');
-  
   const stepsContainer = document.getElementById('daily-recipe-steps');
-  stepsContainer.innerHTML = dailyRecipe.steps.map((s, i) => `<div style="margin-bottom: 4px;"><strong>${i+1}.</strong> ${s}</div>`).join('');
+
+  if (cachedDate === currentDateStr && cachedRecipeStr) {
+    try {
+      const dailyRecipe = JSON.parse(cachedRecipeStr);
+      renderDailyNoniUI(dailyRecipe, titleEl, descEl, reqContainer, stepsContainer);
+    } catch(e) {
+      if (apiKey) fetchAndSaveDailyNoni(apiKey, currentDateStr, titleEl, descEl, reqContainer, stepsContainer);
+      else renderFallbackDaily(titleEl, descEl, reqContainer, stepsContainer);
+    }
+  } else {
+    // Need to fetch fresh
+    if (apiKey) {
+      fetchAndSaveDailyNoni(apiKey, currentDateStr, titleEl, descEl, reqContainer, stepsContainer);
+    } else {
+      renderFallbackDaily(titleEl, descEl, reqContainer, stepsContainer);
+    }
+  }
 
   // Initial render of all recipes
   filterAndRenderRecipes();
 
   // Trigger AI Suggester
   analyzeUserBeans();
+}
+
+function renderFallbackDaily(titleEl, descEl, reqContainer, stepsContainer) {
+  const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 1000 / 60 / 60 / 24);
+  const dailyRecipeIndex = dayOfYear % espressoRecipes.length;
+  const dailyRecipe = espressoRecipes[dailyRecipeIndex];
+  titleEl.textContent = dailyRecipe.name;
+  descEl.textContent = dailyRecipe.description;
+  reqContainer.innerHTML = dailyRecipe.req.map(r => `<span style="background: rgba(212,138,53,0.2); color: var(--color-accent); padding: 2px 8px; border-radius: 4px; font-size: 0.7rem;">${r}</span>`).join('');
+  stepsContainer.innerHTML = dailyRecipe.steps.map((s, i) => `<div style="margin-bottom: 4px;"><strong>${i+1}.</strong> ${s}</div>`).join('');
+}
+
+async function fetchAndSaveDailyNoni(apiKey, currentDateStr, titleEl, descEl, reqContainer, stepsContainer) {
+  titleEl.textContent = "Noni está inventando algo...";
+  descEl.textContent = "Buscando inspiración en los granos ✨🐾";
+  reqContainer.innerHTML = '';
+  stepsContainer.innerHTML = '';
+
+  const prompt = `Eres Noni. Inventa una receta aleatoria y exótica de café para la 'Receta del Día'. Puede ser cold brew, mocktail, latte, fermentación especial, o método filtrado. IMPORTANTE: En "method" si es una Bebida Preparada, usa exactamente "Bebida Preparada". Devuelve EXACTAMENTE este JSON y agrega las propiedades "recipeName" y "description" al mismo nivel: \`\`\`json\n{"recipeName": "Titúlo Creativo", "description": "Breve descripción seductora", "method": "Bebida Preparada", "coffeeWeight": 15, "waterWeight": 250, "grindSize": 45, "timeFormatted": "02:30.0", "notes": "...", "steps": ["1. Haz X"], "stages": [{ "type": "timer", "timeMs": 0, "timeFormatted": "00:00.0", "note": "Bloom", "waterTarget": 50 } ]}\n\`\`\``;
+
+  try {
+    const rawRes = await getNoniResponse("Invéntate la receta mágica y creativa del día para inspirarme", prompt);
+    const jsonMatch = rawRes.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/i);
+    if (jsonMatch && jsonMatch[1]) {
+      const dailyRecipe = JSON.parse(jsonMatch[1]);
+      dailyRecipe.id = 'daily_' + Date.now();
+      
+      localStorage.setItem('daily_noni_recipe', JSON.stringify(dailyRecipe));
+      localStorage.setItem('daily_noni_date', currentDateStr);
+      
+      renderDailyNoniUI(dailyRecipe, titleEl, descEl, reqContainer, stepsContainer);
+    } else {
+       throw new Error("Formato inválido");
+    }
+  } catch(e) {
+    console.error("Noni Daily Error:", e);
+    renderFallbackDaily(titleEl, descEl, reqContainer, stepsContainer);
+  }
+}
+
+function renderDailyNoniUI(dailyRecipe, titleEl, descEl, reqContainer, stepsContainer) {
+  titleEl.textContent = dailyRecipe.recipeName || "Receta Sorpresa";
+  descEl.textContent = dailyRecipe.description || "";
+  reqContainer.innerHTML = `<span style="background: rgba(212,138,53,0.2); color: var(--color-accent); padding: 2px 8px; border-radius: 4px; font-size: 0.7rem;">Molienda: ${dailyRecipe.grindSize}</span><span style="background: rgba(212,138,53,0.2); color: var(--color-accent); padding: 2px 8px; border-radius: 4px; font-size: 0.7rem;">Café: ${dailyRecipe.coffeeWeight}g</span>`;
+  
+  const safeSteps = dailyRecipe.steps || [];
+  stepsContainer.innerHTML = safeSteps.map((s, i) => `<div style="margin-bottom: 4px;"><strong>${i+1}.</strong> ${s}</div>`).join('');
+  
+  const actionsHtml = `
+    <div style="margin-top: 12px; display: flex; gap: 8px;">
+      <button class="btn btn-outline" style="font-size: 0.8rem; padding: 6px 12px; border-color: var(--color-accent); color: var(--color-accent);" onclick="window.saveNoniDailyRecipe()">Guardar en Recetario</button>
+    </div>
+  `;
+  stepsContainer.innerHTML += actionsHtml;
+  
+  window.saveNoniDailyRecipe = async () => {
+    try {
+      const rd = JSON.parse(localStorage.getItem('daily_noni_recipe'));
+      const newExt = {
+        id: Date.now().toString(),
+        date: new Date().toISOString(),
+        method: rd.method || "Bebida Preparada",
+        grindSize: rd.grindSize || 0,
+        coffeeWeight: rd.coffeeWeight || 0,
+        waterWeight: rd.waterWeight || 0,
+        ratio: rd.coffeeWeight > 0 ? (rd.waterWeight / rd.coffeeWeight).toFixed(1) : 0,
+        timeFormatted: rd.timeFormatted || "00:00.0",
+        timeMs: 0,
+        notes: (rd.recipeName || "") + " - " + (rd.description || ""), 
+        isFavorite: false,
+        isFromNoni: true,
+        steps: rd.steps || [],
+        pourStages: (rd.stages || []).map(s => {
+          if (s.timeFormatted) return s;
+          const ms = s.timeMs || 0;
+          const mins = Math.floor(ms / 60000).toString().padStart(2, '0');
+          const secs = Math.floor((ms % 60000) / 1000).toString().padStart(2, '0');
+          return { ...s, timeFormatted: `${mins}:${secs}.0` };
+        })
+      };
+      await db.collection("extractions").add(newExt);
+      alert('¡Aventura del día guardada en tu Recetario!');
+      // Prevent spam clicks
+      const btn = stepsContainer.querySelector('.btn-outline');
+      if (btn) btn.style.display = 'none';
+    } catch(e) {
+      alert('Error al guardar la receta en Firestore.');
+    }
+  };
 }
 
 function analyzeUserBeans() {
@@ -1377,12 +1479,18 @@ function renderRecipes() {
   const recipeList = document.getElementById('recipe-list');
   
   // Apply Filter
-  let filteredExtractions = extractions;
+  let filtered = extractions;
+
+  // 1. App Top Tabs Filter
   if (currentRecetarioFilter === 'favorites') {
-    filteredExtractions = extractions.filter(e => e.isFavorite);
+    filtered = filtered.filter(row => row.isFavorite === true);
+  } else if (currentRecetarioFilter === 'filtrados') {
+    filtered = filtered.filter(row => row.method !== 'Bebida Preparada');
+  } else if (currentRecetarioFilter === 'preparados') {
+    filtered = filtered.filter(row => row.method === 'Bebida Preparada');
   }
 
-  if (filteredExtractions.length === 0) {
+  if (filtered.length === 0) {
     if (currentRecetarioFilter === 'favorites') {
       recipeList.innerHTML = `<div class="text-center" style="color: var(--color-text-muted); margin-top: 2rem;">No tienes recetas marcadas como favoritas.</div>`;
     } else {
@@ -1392,7 +1500,7 @@ function renderRecipes() {
   }
 
   recipeList.innerHTML = '';
-  let sortedExtractions = [...filteredExtractions];
+  let sortedExtractions = [...filtered];
   
   // Method Filter
   if (currentMethodFilter !== 'all') {
@@ -1788,7 +1896,7 @@ function setupNoniAndSettings() {
         const ext = extractions.find(ex => ex.id === t.extractionId);
         return ext ? `Tomó ${t.varietal} en ${ext.method} con molienda ${ext.grindSize}, calificado ${t.rating} estrellas.` : '';
       }).filter(Boolean).join(" ");
-      const systemContext = `Eres Noni, una inteligente y tierna mascota virtual experta en café. Usas expresiones tiernas de modo suave (¡Glu!, 🐾). Respalda tus recomendaciones con ciencia (molienda, ratios). El usuario usa la app 'Origen 90 Coffee Diary'. Contexto reciente de sus cafés: ${recentTastings || "Ninguno."}\nREGLA ESTRICTA: Si el usuario te pide una receta, siempre genera al final EXACTAMENTE este bloque de código JSON (inventa los parámetros cronológicamente). El array "steps" es SOLO para preparaciones PREVIAS al cronómetro (hervir agua, moler, lavar filtro). El array "stages" DEBE contener TODOS los pasos interactivos dentro del cronómetro divididos en milisegundos, ya sea de tipo "timer" (vertidos) o "action" (acciones manuales como revolver o presionar AeroPress): \`\`\`json\n{"method": "V60", "coffeeWeight": 15, "waterWeight": 250, "grindSize": 45, "timeFormatted": "02:30.0", "notes": "Disfruta las notas florales.", "steps": ["1. Hierve agua a 93°C", "2. Enjuaga filtro"], "stages": [{ "type": "timer", "timeMs": 0, "timeFormatted": "00:00.0", "note": "Bloom", "waterTarget": 50 }, { "type": "timer", "timeMs": 30000, "timeFormatted": "00:30.0", "note": "Segundo vertido", "waterTarget": 150 }, { "type": "action", "timeMs": 90000, "timeFormatted": "01:30.0", "note": "Revolver suavemente", "waterTarget": 250 } ]}\n\`\`\` No incluyas JSON si hace preguntas generales.`;
+      const systemContext = `Eres Noni, una inteligente y tierna mascota virtual experta en café. Usas expresiones tiernas de modo suave (¡Glu!, 🐾). Respalda tus recomendaciones con ciencia (molienda, ratios). El usuario usa la app 'Origen 90 Coffee Diary'. Contexto reciente de sus cafés: ${recentTastings || "Ninguno."}\nREGLA ESTRICTA: Si el usuario te pide una receta, siempre genera al final EXACTAMENTE este bloque de código JSON (inventa los parámetros cronológicamente). El array "steps" es SOLO para preparaciones PREVIAS al cronómetro (hervir agua, moler, lavar filtro). El array "stages" DEBE contener TODOS los pasos interactivos dentro del cronómetro divididos en milisegundos, ya sea de tipo "timer" o "action". IMPORTANTE: En la propiedad "method", si es un mocktail, cold brew compuesto, latte o mezcla de cafetería usa EXACTAMENTE "Bebida Preparada", de lo contrario usa el método usado (V60, Aeropress etc): \`\`\`json\n{"method": "Bebida Preparada", "coffeeWeight": 15, "waterWeight": 250, "grindSize": 45, "timeFormatted": "02:30.0", "notes": "Disfruta las notas florales.", "steps": ["1. Hierve agua a 93°C", "2. Enjuaga filtro"], "stages": [{ "type": "timer", "timeMs": 0, "timeFormatted": "00:00.0", "note": "Bloom", "waterTarget": 50 }, { "type": "action", "timeMs": 90000, "timeFormatted": "01:30.0", "note": "Revolver suavemente", "waterTarget": 250 } ]}\n\`\`\` No incluyas JSON si hace preguntas generales.`;
 
       try {
         const responseText = await getNoniResponse(query, systemContext);
