@@ -15,6 +15,7 @@ const db = firebase.firestore();
 // State
 let extractions = [];
 let tastings = [];
+let pantry = [];
 
 // Guide state
 let replicateMode = false;
@@ -204,6 +205,41 @@ const masterRecipes = [
       { id: 'cx_2', timeMs: 45000, timeFormatted: '00:45.0', note: 'Vertido Lento al Centro', waterTarget: '250' },
       { id: 'cx_3', timeMs: 105000, timeFormatted: '01:45.0', note: 'Vertido Final', waterTarget: '480' },
       { id: 'cx_end', timeMs: 270000, timeFormatted: '04:30.0', note: 'Fin Extracción Esperado', waterTarget: '480' }
+    ]
+  },
+  { 
+    id: "esp_modern", 
+    method: "Espresso",
+    name: "Espresso Moderno (Ratio 1:2.5)", 
+    description: "Extracción equilibrada, dulce y con mucha claridad. Ideal para tuestes medios o claros.", 
+    steps: ["Molienda: Muy Fina (Espresso). Ratio: 1:2.5 (Ej. 18g café / 45g rendimiento).", "Distribuye con WDT para romper grumos y compacta (Tamp) niveladamente.", "0:00 - Inicia el cronómetro al encender la bomba.", "Si la extracción gotea a los 6-8 segundos, la molienda es correcta.", "Detén la bomba unos gramos antes de llegar a tu meta, porque seguirán cayendo gotas."],
+    pourStages: [
+      { id: 'esp_1', timeMs: 0, timeFormatted: '00:00.0', note: 'Distribución y Compactado', waterTarget: '0' },
+      { id: 'esp_2', timeMs: 5000, timeFormatted: '00:05.0', note: 'Pre-infusión (Goteo)', waterTarget: '0' },
+      { id: 'esp_3', timeMs: 30000, timeFormatted: '00:30.0', note: 'Detener Bomba a 45g', waterTarget: '45' }
+    ]
+  },
+  { 
+    id: "esp_ristretto", 
+    method: "Espresso",
+    name: "Ristretto Tradicional (Ratio 1:1.5)", 
+    description: "Cuerpo pesado, intenso y meloso. Perfecto para tuestes medios/oscuros y bases con leche.", 
+    steps: ["Molienda: Extra Fina. Ratio: 1:1.5 (Ej. 18g café / 27g rendimiento).", "Distribución y compactado tradicional.", "0:00 - Inicia la bomba.", "La extracción debe ser lenta, similar al flujo de la miel caliente, casi goteando.", "Detén a los 25 a 30 segundos, obteniendo muy poco líquido pero ultra concentrado."],
+    pourStages: [
+      { id: 'ris_1', timeMs: 0, timeFormatted: '00:00.0', note: 'Encender Bomba', waterTarget: '0' },
+      { id: 'ris_2', timeMs: 25000, timeFormatted: '00:25.0', note: 'Detener a 27g', waterTarget: '27' }
+    ]
+  },
+  { 
+    id: "moka_classic", 
+    method: "Moka Pot",
+    name: "Moka Pot Hoffman Technique", 
+    description: "Evita el sabor a quemado o metálico. Intenso como espresso, dulce como V60.", 
+    steps: ["Molienda: Media-fina (un poco más gruesa que espresso). Llena la canasta sin presionar.", "Agua: Hervida. Llena la cámara inferior con agua caliente hasta justo debajo de la válvula.", "Pon la Moka a fuego bajo-medio, con la tapa ABIERTA.", "Cuando empiece a fluir el café lentamente, reduce el calor al mínimo.", "Al momento de burbujear o salir aire, retira del fuego y pon la base en agua fría para detener la extracción."],
+    pourStages: [
+      { id: 'mok_1', timeMs: 0, timeFormatted: '00:00.0', note: 'Armar cafetera con agua caliente', waterTarget: 'Vol' },
+      { id: 'mok_2', timeMs: 45000, timeFormatted: '00:45.0', note: 'Fuego lento, flujo uniforme', waterTarget: 'Flu' },
+      { id: 'mok_3', timeMs: 90000, timeFormatted: '01:30.0', note: 'Cortar calor (Base en Agua Fría)', waterTarget: 'Fin' }
     ]
   }
 ];
@@ -616,6 +652,7 @@ function init() {
   renderSCAFlavors();
   setupForms();
   setupInteractivity();
+  setupPantryForm();
   setupInspirationFilters();
   renderInspiration();
   initFirebaseSync();
@@ -645,6 +682,12 @@ function initFirebaseSync() {
     updateExtractionDropdown();
     renderRecipes();
     analyzeUserBeans(); // Re-run AI logic if new tastings arrive
+  });
+
+  db.collection("pantry").onSnapshot((snapshot) => {
+    pantry = snapshot.docs.map(d => ({ firebaseId: d.id, ...d.data() }));
+    if (window.renderPantry) window.renderPantry();
+    if (window.updatePantryDropdown) window.updatePantryDropdown();
   });
 }
 
@@ -1239,6 +1282,20 @@ function setupForms() {
 
     try {
       await db.collection("extractions").add(newExtraction);
+      
+      // ALACENA VIRTUAL DEDUCTION
+      const extPantryId = document.getElementById('ext-pantry-id').value;
+      const parsedCoffeeWeight = parseFloat(document.getElementById('coffee-weight').value) || 0;
+      if (extPantryId && parsedCoffeeWeight > 0) {
+        const selectedBag = pantry.find(p => p.firebaseId === extPantryId);
+        if (selectedBag) {
+          const newWeight = Math.max(0, selectedBag.currentWeight - parsedCoffeeWeight);
+          try {
+            await db.collection("pantry").doc(extPantryId).update({ currentWeight: newWeight });
+          } catch(err) { console.warn("Fallo sincronización alacena", err); }
+        }
+      }
+
       // Reset Form & Timer
       formBitacora.reset();
       document.getElementById('grind-value').textContent = "40";
@@ -1599,6 +1656,9 @@ function renderRecipes() {
             </div>
             ${ext.notes ? `<div style="font-size: 0.85rem; color: var(--color-text-secondary); margin-top: 12px;"><strong>Notas:</strong> ${ext.notes}</div>` : ''}
             <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px;">
+              <button class="btn" style="padding: 4px 12px; font-size: 0.8rem; background: rgba(106, 191, 99, 0.1); color: var(--color-success); border: 1px solid rgba(106,191,99,0.3);" onclick="window.exportRecipeToImage('${ext.id}')">
+                Compartir IG <svg width="14" height="14" viewBox="0 0 24 24" style="vertical-align: middle; margin-left: 4px;"><path fill="currentColor" d="M18 16.08C17.24 16.08 16.56 16.38 16.04 16.85L8.91 12.7C8.96 12.47 9 12.24 9 12S8.96 11.53 8.91 11.3L15.96 7.19C16.5 7.69 17.21 8 18 8C19.66 8 21 6.66 21 5S19.66 2 18 2 15 3.34 15 5C15 5.24 15.04 5.47 15.09 5.7L7.96 9.81C7.44 9.31 6.73 9 6 9C4.34 9 3 10.34 3 12S4.34 15 6 15C6.73 15 7.44 14.69 7.96 14.19L15.09 18.3C15.04 18.53 15 18.76 15 19C15 20.66 16.34 22 18 22S21 20.66 21 19 19.66 16.08 18 16.08Z"/></svg>
+              </button>
               <button class="btn" style="padding: 4px 12px; font-size: 0.8rem; background: rgba(255,255,255,0.05); color: var(--color-text-secondary);" onclick="window.openEditModal('${ext.id}')">
                 Editar
               </button>
@@ -1671,6 +1731,85 @@ function renderRecipes() {
       alert("Error UI: " + e.message);
     }
   });
+}
+
+window.exportRecipeToImage = async function(id) {
+  const ext = extractions.find(ex => ex.id === id);
+  if (!ext) return;
+  const t = tastings.find(ta => ta.extractionId === ext.id);
+
+  // Populate Template
+  document.getElementById('export-title').textContent = ext.method || 'Receta';
+  document.getElementById('export-origin').textContent = t ? `Origen: ${t.origin}` : `Origen: Origen 90`;
+  document.getElementById('export-method-badge').textContent = t && t.varietal ? t.varietal : (ext.method || 'Café');
+  document.getElementById('export-coffee').textContent = `${ext.coffeeWeight}g`;
+  document.getElementById('export-water').textContent = `${ext.waterWeight}g`;
+  document.getElementById('export-grind').textContent = ext.grindSize;
+  document.getElementById('export-notes').textContent = ext.notes || (t && t.flavors && t.flavors.length > 0 ? t.flavors.join(', ') : 'Una extracción digna de compartir.');
+  
+  const starsEl = document.getElementById('export-stars');
+  if (t && t.rating) {
+    let s = '';
+    for(let i=0; i<Math.floor(t.rating); i++) s+='★';
+    if(t.rating % 1 !== 0) s+='★'; 
+    for(let i=0; i<(5-Math.ceil(t.rating)); i++) s+='☆';
+    starsEl.textContent = s;
+  } else {
+    starsEl.textContent = '★★★★★';
+  }
+
+  const wrapper = document.getElementById('export-wrapper');
+  wrapper.style.zIndex = '1000'; // Make sure canvas can render it
+  
+  try {
+    if (typeof html2canvas === 'undefined') {
+      throw new Error("html2canvas no cargó desde el CDN. Verifica conexión.");
+    }
+    const canvas = await html2canvas(document.getElementById('export-card'), { 
+      backgroundColor: '#0a0a0c',
+      scale: 2, // High res
+      useCORS: true,
+      allowTaint: false,
+      logging: false
+    });
+    
+    wrapper.style.zIndex = '-1';
+    
+    // Convert to Image
+    canvas.toBlob(async (blob) => {
+      if (!blob) throw new Error("Fallo al generar el archivo Blob.");
+      const safeId = ext.id && ext.id.toString ? ext.id.toString().replace(/ /g, '_') : 'origen';
+      const file = new File([blob], `receta_${safeId}.png`, { type: 'image/png' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            title: 'Mi Receta de Café',
+            text: '¡Mira esta extracción de café en Origen 90!',
+            files: [file]
+          });
+        } catch(shareErr) {
+          // Si falló por falta de gesto de usuario, forzamos descarga
+          downloadExportImage(canvas.toDataURL('image/png'), `receta_${safeId}.png`);
+        }
+      } else {
+        // Fallback Download
+        downloadExportImage(canvas.toDataURL('image/png'), `receta_${safeId}.png`);
+      }
+    }, 'image/png');
+  } catch(e) {
+    wrapper.style.zIndex = '-1';
+    console.error("Error exporting image", e);
+    alert("Error Canvas: " + e.message);
+  }
+};
+
+function downloadExportImage(dataUrl, filename) {
+  const a = document.createElement('a');
+  a.href = dataUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
 
 window.startReplication = function(recipeId) {
@@ -1896,7 +2035,7 @@ function setupNoniAndSettings() {
         const ext = extractions.find(ex => ex.id === t.extractionId);
         return ext ? `Tomó ${t.varietal} en ${ext.method} con molienda ${ext.grindSize}, calificado ${t.rating} estrellas.` : '';
       }).filter(Boolean).join(" ");
-      const systemContext = `Eres Noni, una inteligente y tierna mascota virtual experta en café. Usas expresiones tiernas de modo suave (¡Glu!, 🐾). Respalda tus recomendaciones con ciencia (molienda, ratios). El usuario usa la app 'Origen 90 Coffee Diary'. Contexto reciente de sus cafés: ${recentTastings || "Ninguno."}\nREGLA ESTRICTA: Si el usuario te pide una receta, siempre genera al final EXACTAMENTE este bloque de código JSON (inventa los parámetros cronológicamente). El array "steps" es SOLO para preparaciones PREVIAS al cronómetro (hervir agua, moler, lavar filtro). El array "stages" DEBE contener TODOS los pasos interactivos dentro del cronómetro divididos en milisegundos, ya sea de tipo "timer" o "action". IMPORTANTE: En la propiedad "method", si es un mocktail, cold brew compuesto, latte o mezcla de cafetería usa EXACTAMENTE "Bebida Preparada", de lo contrario usa el método usado (V60, Aeropress etc): \`\`\`json\n{"method": "Bebida Preparada", "coffeeWeight": 15, "waterWeight": 250, "grindSize": 45, "timeFormatted": "02:30.0", "notes": "Disfruta las notas florales.", "steps": ["1. Hierve agua a 93°C", "2. Enjuaga filtro"], "stages": [{ "type": "timer", "timeMs": 0, "timeFormatted": "00:00.0", "note": "Bloom", "waterTarget": 50 }, { "type": "action", "timeMs": 90000, "timeFormatted": "01:30.0", "note": "Revolver suavemente", "waterTarget": 250 } ]}\n\`\`\` No incluyas JSON si hace preguntas generales.`;
+      const systemContext = `Eres Noni, una inteligente y tierna mascota virtual experta en café. Usas expresiones tiernas de modo suave (¡Miau!, 🐾). Eres también experta barista mundial en Espresso, vaporización de leche, ratios de Moka Pot y herramientas avanzadas (WDT). Respalda tus recomendaciones con ciencia y pasión. El usuario usa la app 'Origen 90 Coffee Diary'. Contexto reciente de sus cafés: ${recentTastings || "Ninguno."}\nREGLA ESTRICTA: Si el usuario te pide una receta, siempre genera al final EXACTAMENTE este bloque de código JSON (inventa los parámetros cronológicamente). El array "steps" es SOLO para preparaciones PREVIAS al cronómetro (hervir agua, moler, lavar filtro, preparar disco de espresso). El array "stages" DEBE contener TODOS los pasos interactivos dentro del cronómetro divididos en milisegundos, ya sea de tipo "timer" o "action". IMPORTANTE: En "method", si es un mocktail, cold brew compuesto o latte, usa EXACTAMENTE "Bebida Preparada". Si es Espresso, usa "Espresso": \`\`\`json\n{"method": "Espresso", "coffeeWeight": 18, "waterWeight": 36, "grindSize": 8, "timeFormatted": "00:30.0", "notes": "Textura sedosa.", "steps": ["1. Nivelar café", "2. Tamp"], "stages": [{ "type": "timer", "timeMs": 0, "timeFormatted": "00:00.0", "note": "Encender Bomba", "waterTarget": 0 }, { "type": "action", "timeMs": 30000, "timeFormatted": "00:30.0", "note": "Apagar a los 36g", "waterTarget": 36 } ]}\n\`\`\` No incluyas JSON si hace preguntas generales.`;
 
       try {
         const responseText = await getNoniResponse(query, systemContext);
@@ -1996,6 +2135,154 @@ window.rateRecipe = function(recipeId) {
       if (slider) slider.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, 100);
+};
+
+// --- ALACENA VIRTUAL / PANTRY BACKEND ---
+
+function setupPantryForm() {
+  const formPantry = document.getElementById('form-pantry');
+  if(!formPantry) return;
+  formPantry.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = formPantry.querySelector('button');
+    btn.disabled = true;
+    
+    const initialW = parseFloat(document.getElementById('pantry-weight').value);
+    const newBag = {
+      id: Date.now().toString(),
+      roaster: document.getElementById('pantry-roaster').value,
+      name: document.getElementById('pantry-name').value,
+      origin: document.getElementById('pantry-origin').value,
+      process: document.getElementById('pantry-process').value,
+      roastDate: document.getElementById('pantry-roast-date').value,
+      initialWeight: initialW,
+      currentWeight: initialW,
+      addedDate: new Date().toISOString()
+    };
+    
+    try {
+      await db.collection('pantry').add(newBag);
+      formPantry.reset();
+      alert('¡Café añadido a tu Alacena Virtual!');
+    } catch(err) {
+      console.error(err);
+      alert('Error guardando en la alacena');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+}
+
+window.renderPantry = function() {
+  const container = document.getElementById('pantry-list');
+  if(!container) return;
+  container.innerHTML = '';
+  
+  const activeBags = pantry.filter(p => p.currentWeight > 0);
+  const emptyBags = pantry.filter(p => p.currentWeight <= 0);
+  
+  if (pantry.length === 0) {
+    container.innerHTML = '<div style="color: var(--color-text-muted); font-size: 0.9rem; padding: 20px; text-align: center;">Tu alacena está vacía. Añade tu primera bolsa de café.</div>';
+    return;
+  }
+  
+  const renderBags = (bags, opacity = 1) => {
+    bags.forEach(bag => {
+      const p = Math.max(0, Math.min(100, (bag.currentWeight / bag.initialWeight) * 100));
+      const isLow = p < 20;
+      
+      const card = document.createElement('div');
+      card.style.cssText = `background: var(--color-bg); padding: 16px; border-radius: var(--radius-sm); border: 1px solid var(--color-border); opacity: ${opacity}; position: relative; overflow: hidden;`;
+      
+      card.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; position: relative; z-index: 2;">
+          <div>
+            <div style="font-weight: 600; font-size: 1.1rem; color: var(--color-text-primary); margin-bottom: 2px;">${bag.name}</div>
+            <div style="font-size: 0.8rem; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">${bag.roaster}</div>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-weight: bold; font-size: 1.1rem; color: ${isLow ? 'var(--color-danger)' : 'var(--color-success)'};">${bag.currentWeight.toFixed(1)}g</div>
+            <div style="font-size: 0.7rem; color: var(--color-text-muted);">/ ${bag.initialWeight}g</div>
+          </div>
+        </div>
+        
+        <div style="font-size: 0.8rem; color: var(--color-text-muted); margin-bottom: 12px; position: relative; z-index: 2;">
+          ${bag.origin} • ${bag.process} • Tostado: ${new Date(bag.roastDate).toLocaleDateString()}
+        </div>
+        
+        <div style="width: 100%; height: 6px; background-color: rgba(255,255,255,0.05); border-radius: 3px; margin-bottom: 16px; position: relative; z-index: 2; overflow: hidden;">
+          <div style="width: ${p}%; height: 100%; background-color: ${isLow ? 'var(--color-danger)' : 'var(--color-accent)'}; transition: width 0.3s ease;"></div>
+        </div>
+
+        <div style="display: flex; gap: 8px; position: relative; z-index: 2;">
+          <button onclick="window.editPantryWeight('${bag.firebaseId}', ${bag.currentWeight})" style="flex: 1; padding: 6px; background: transparent; border: 1px solid var(--color-border); color: var(--color-text-secondary); border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.8rem;">
+            <svg width="14" height="14" viewBox="0 0 24 24"><path fill="currentColor" d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" style="display:none;"/><path fill="currentColor" d="M14.06,9.02L15.98,10.94L5.92,21H4V19.08L14.06,9.02M17.66,3.34C17.85,3.15 18.1,3.05 18.35,3.06C18.61,3.05 18.86,3.15 19.05,3.34L20.66,4.95C21.05,5.34 21.05,5.97 20.66,6.36L18.71,8.31L16.79,6.39L18.66,4.52L17.66,3.5L14.06,7.1L12.14,5.18L17.66,3.34Z" /></svg>
+            Corregir Peso
+          </button>
+          <button onclick="window.deletePantryBag('${bag.firebaseId}')" style="flex: 1; padding: 6px; background: transparent; border: 1px solid var(--color-border); color: var(--color-danger); border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.8rem;">
+            <svg width="14" height="14" viewBox="0 0 24 24"><path fill="currentColor" d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" /></svg>
+            Eliminar
+          </button>
+        </div>
+      `;
+      container.appendChild(card);
+    });
+  }
+  
+  renderBags(activeBags, 1);
+  if(emptyBags.length > 0) {
+    const divider = document.createElement('div');
+    divider.style.cssText = 'font-size: 0.8rem; color: var(--color-text-muted); margin: 12px 0 4px 0; text-transform: uppercase; letter-spacing: 1px;';
+    divider.textContent = 'Histórico (Vacías)';
+    container.appendChild(divider);
+    renderBags(emptyBags, 0.5);
+  }
+};
+
+window.updatePantryDropdown = function() {
+  const select = document.getElementById('ext-pantry-id');
+  if(!select) return;
+  const oldValue = select.value;
+  select.innerHTML = '<option value="">Usar café general (No descontar)</option>';
+  
+  const activeBags = pantry.filter(p => p.currentWeight > 0);
+  activeBags.forEach(bag => {
+    const opt = document.createElement('option');
+    opt.value = bag.firebaseId;
+    opt.textContent = `${bag.name} - ${bag.roaster} (${bag.currentWeight.toFixed(1)}g)`;
+    select.appendChild(opt);
+  });
+  
+  if (activeBags.some(b => b.firebaseId === oldValue)) {
+    select.value = oldValue;
+  }
+};
+
+window.editPantryWeight = async function(id, currentWeight) {
+  const newWeightStr = prompt("¿Cuántos gramos le quedan a esta bolsa realmente? (ej. 150)", currentWeight.toFixed(1));
+  if (newWeightStr === null) return;
+  const newWeight = parseFloat(newWeightStr.trim());
+  
+  if (!isNaN(newWeight) && newWeight >= 0) {
+    try {
+      await db.collection("pantry").doc(id).update({ currentWeight: newWeight });
+    } catch(e) {
+      alert("Error al actualizar el peso de la bolsa.");
+    }
+  } else {
+    alert("Peso inválido. Debes ingresar un número válido (ej. 150.5).");
+  }
+};
+
+window.deletePantryBag = async function(id) {
+  const confirmDel = confirm("¿Estás seguro de que deseas eliminar esta bolsa de café de la Alacena?");
+  if (confirmDel) {
+    try {
+      await db.collection("pantry").doc(id).delete();
+    } catch(e) {
+      alert("Error al eliminar la bolsa.");
+    }
+  }
 };
 
 // Start app
