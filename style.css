@@ -443,6 +443,85 @@ input[type="range"]::-webkit-slider-runnable-track {
   font-weight: 500;
 }
 
+/* --- Contextual Dropdown Menus --- */
+.context-menu-container {
+  display: inline-block;
+  position: relative;
+}
+.context-menu-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 0 8px;
+  line-height: 1;
+}
+.context-menu-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.5);
+  display: flex;
+  flex-direction: column;
+  min-width: 150px;
+  z-index: 100;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition: all 0.2s ease;
+}
+.context-menu-dropdown.active {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+.context-menu-item {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--color-text-primary);
+  padding: 12px 16px;
+  text-align: left;
+  cursor: pointer;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.context-menu-item:last-child {
+  border-bottom: none;
+}
+.context-menu-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+.context-menu-item.danger {
+  color: var(--color-danger);
+}
+
+/* --- Form Surface Sections --- */
+.form-section {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 20px;
+}
+.form-section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 /* Animations */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }

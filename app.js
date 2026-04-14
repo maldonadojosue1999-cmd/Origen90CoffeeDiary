@@ -301,59 +301,33 @@ let repStartTime = 0;
 let repElapsedTime = 0;
 let previousViewBeforeReplication = 'view-recetario';
 // Inspiration Logic
-let selectedIngredients = [];
 
 function setupInspirationFilters() {
-  const container = document.getElementById('ingredient-chips');
-  container.innerHTML = '';
-  // Get unique ingredients from all recipes
-  const allReqs = espressoRecipes.flatMap(r => r.req);
-  const uniqueReqs = [...new Set(allReqs)].sort();
+  // New: Wire up Noni Quick Prompts
+  const quickPrompts = document.querySelectorAll('.noni-prompt-chip');
+  const noniDrawer = document.getElementById('noni-drawer');
+  const noniFab = document.getElementById('noni-fab');
+  const noniInput = document.getElementById('noni-input');
+  const formNoni = document.getElementById('form-noni-chat');
 
-  // Define categories
-  const categories = {
-    "Básicos y Lácteos": ["Hielo", "Leche", "Leche de almendra", "Leche de avena", "Cold brew", "Agua Tónica"],
-    "Jarabes y Salsas": ["Jarabe de chocolate", "Jarabe de vainilla", "Jarabe de caramelo", "Jarabe de almendra tostada", "Jarabe de menta", "Jarabe de lavanda", "Jarabe simple", "Leche condensada", "Miel", "Crema de pistache"],
-    "Polvos y Especias": ["Cacao", "Canela", "Matcha en polvo", "Chai (polvo o concentrado)", "Piloncillo (o panela)"],
-    "Extras y Toppings": ["Naranja", "Helado de vainilla", "Chispas de chocolate", "Azúcar morena", "Mazapán de cacahuate", "Clavo (opcional)"]
-  };
+  quickPrompts.forEach(chip => {
+    chip.addEventListener('click', () => {
+      const promptText = chip.innerText.trim();
+      
+      // Open drawer if closed
+      if (noniDrawer && !noniDrawer.classList.contains('open')) {
+        noniDrawer.classList.add('open');
+        if (noniFab) noniFab.classList.remove('sleeping');
+      }
 
-  // Render by category
-  for (const [catName, catItems] of Object.entries(categories)) {
-    // Find which items in this category are actually used in our active recipes
-    const activeItems = catItems.filter(item => uniqueReqs.includes(item));
-    if (activeItems.length === 0) continue;
-
-    const catGroup = document.createElement('div');
-    catGroup.style.cssText = 'width: 100%; margin-bottom: 12px;';
-    
-    const catTitle = document.createElement('div');
-    catTitle.style.cssText = 'font-size: 0.75rem; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; font-weight: 500;';
-    catTitle.textContent = catName;
-    catGroup.appendChild(catTitle);
-
-    const chipsWrapper = document.createElement('div');
-    chipsWrapper.style.cssText = 'display: flex; flex-wrap: wrap; gap: 8px;';
-
-    activeItems.forEach(ing => {
-      const chip = document.createElement('div');
-      chip.className = 'ingredient-chip';
-      chip.textContent = ing;
-      chip.addEventListener('click', () => {
-        chip.classList.toggle('active');
-        if (chip.classList.contains('active')) {
-          selectedIngredients.push(ing);
-        } else {
-          selectedIngredients = selectedIngredients.filter(i => i !== ing);
-        }
-        filterAndRenderRecipes();
-      });
-      chipsWrapper.appendChild(chip);
+      // Inject text and submit
+      if (noniInput && formNoni) {
+        noniInput.value = promptText;
+        // Simulate form submit to trigger Noni logic natively
+        formNoni.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+      }
     });
-
-    catGroup.appendChild(chipsWrapper);
-    container.appendChild(catGroup);
-  }
+  });
 }
 
 async function renderInspiration() {
@@ -384,8 +358,7 @@ async function renderInspiration() {
     }
   }
 
-  // Initial render of all recipes
-  filterAndRenderRecipes();
+
 
   // Trigger AI Suggester
   analyzeUserBeans();
@@ -565,7 +538,7 @@ function renderMasterCatalog(methodFilter) {
 
   recipesToRender.forEach(recipe => {
     const card = document.createElement('div');
-    card.style.cssText = 'background: var(--color-bg); padding: 16px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.05);';
+    card.style.cssText = 'background: var(--color-bg); padding: 16px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.05); flex: 0 0 calc(100vw - 48px); max-width: 320px; scroll-snap-align: start;';
     card.innerHTML = `
       <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
         <div style="font-weight: 500; font-size: 1.05rem; color: var(--color-text-primary);">${recipe.name}</div>
@@ -585,41 +558,7 @@ function renderMasterCatalog(methodFilter) {
   });
 }
 
-function filterAndRenderRecipes() {
-  const container = document.getElementById('inspiration-results');
-  const countLabel = document.getElementById('recipe-count');
-  container.innerHTML = '';
 
-  let filtered = espressoRecipes;
-  if (selectedIngredients.length > 0) {
-    // Show recipes that can be made with the selected ingredients (recipe reqs must be a subset of selected)
-    // Actually, a more forgiving filter: Show recipes that contain AT LEAST ONE of the selected ingredients.
-    filtered = espressoRecipes.filter(r => 
-      r.req.some(req => selectedIngredients.includes(req))
-    );
-  }
-
-  countLabel.textContent = `(${filtered.length})`;
-
-  if (filtered.length === 0) {
-    container.innerHTML = '<div style="color: var(--color-text-muted); font-size: 0.9rem; padding: 20px; text-align: center;">No encontramos recetas exactas, ¡intenta mezclar otros ingredientes!</div>';
-    return;
-  }
-
-  filtered.forEach(recipe => {
-    const card = document.createElement('div');
-    card.style.cssText = 'background: var(--color-bg); padding: 16px; border-radius: var(--radius-sm); border: 1px solid var(--color-border);';
-    card.innerHTML = `
-      <div style="font-weight: 500; font-size: 1.1rem; margin-bottom: 4px; color: var(--color-text-primary);">${recipe.name}</div>
-      <div style="font-size: 0.85rem; color: var(--color-text-secondary); margin-bottom: 12px;">${recipe.description}</div>
-      <div style="font-size: 0.75rem; color: var(--color-accent); margin-bottom: 8px;">Necesitas: ${recipe.req.join(', ')}</div>
-      <div style="font-size: 0.85rem; color: var(--color-text-muted); border-left: 2px solid var(--color-border); padding-left: 10px;">
-        ${recipe.steps.map((s, i) => `<div style="margin-bottom: 4px;">${i+1}. ${s}</div>`).join('')}
-      </div>
-    `;
-    container.appendChild(card);
-  });
-}
 
 // Initialize on load
 function init() {
@@ -913,7 +852,7 @@ function updateRepTimerUI() {
           nextStageIndex++;
         }
         else {
-          repTimerGuideDisplay.textContent = `${nextStageIndex === 0 ? 'Paso actual' : 'Siguiente paso'}: ${stage.note || 'Vertido'} -> ${stage.waterTarget ? stage.waterTarget + 'ml' : '...'}`;
+          repTimerGuideDisplay.textContent = `${nextStageIndex === 0 ? 'Paso actual' : 'Llegar a'}: ${stage.waterTarget ? stage.waterTarget + 'g' : '...'} (${stage.note || 'Vertido'})`;
           repTimerGuideDisplay.style.color = 'var(--color-accent)';
         }
       } 
@@ -934,7 +873,7 @@ function updateRepTimerUI() {
           playBeep(523.25, 'sine', 200);
           setTimeout(() => playBeep(659.25, 'sine', 400), 200);
         } else {
-          repTimerGuideDisplay.textContent = `Paso actual: ${lastStage.note || 'Vertido'} -> ${lastStage.waterTarget ? lastStage.waterTarget + 'ml' : '...'}`;
+          repTimerGuideDisplay.textContent = `Paso final: Llegar a ${lastStage.waterTarget ? lastStage.waterTarget + 'g' : '...'} (${lastStage.note || 'Vertido'})`;
           repTimerGuideDisplay.style.color = 'var(--color-accent)';
         }
       }
@@ -963,7 +902,7 @@ function renderRoadmapProgress(elapsedTimeParam) {
         <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 6px;" id="roadmap-text-${idx}">
           <span style="font-family: monospace;">${stage.timeFormatted.substring(0, 5)}</span>
           <span>${stage.note || 'Vertido'}</span>
-          <span>${stage.waterTarget ? stage.waterTarget + 'ml' : '-'}</span>
+          <span style="font-weight: bold; color: var(--color-success);">${stage.waterTarget ? stage.waterTarget + 'g' : '-'}</span>
         </div>
         <div style="width: 100%; height: 4px; background-color: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden;">
           <div id="roadmap-bar-${idx}" style="width: 0%; height: 100%; background-color: var(--color-accent); transition: width 0.1s linear;"></div>
@@ -1025,27 +964,34 @@ function renderPourStages() {
     const row = document.createElement('div');
     row.style.display = 'flex';
     row.style.gap = '8px';
-    row.style.alignItems = 'center';
+    row.style.alignItems = 'flex-start';
     row.style.backgroundColor = 'var(--color-bg)';
     row.style.padding = '8px';
     row.style.borderRadius = 'var(--radius-sm)';
     row.style.border = '1px solid var(--color-border)';
 
     row.innerHTML = `
-      <div style="color: var(--color-accent); font-family: monospace; width: 60px;">${stage.timeFormatted.substring(0, 5)}</div>
-      <input type="text" id="note-${stage.id}" value="${stage.note}" style="flex: 2; padding: 6px;" placeholder="Nota (ej. Blooming)">
-      <div style="display: flex; align-items: center; gap: 4px; flex: 1;">
-        <input type="number" id="water-${stage.id}" style="padding: 6px; width: 100%;" placeholder="150" value="${stage.waterTarget}">
-        <span style="color: var(--color-text-muted); font-size: 0.8rem;">ml</span>
+      <div style="color: var(--color-accent); font-family: monospace; width: 50px; padding-top: 8px;">${stage.timeFormatted.substring(0, 5)}</div>
+      <input type="text" id="note-${stage.id}" value="${stage.note}" style="flex: 2; padding: 6px; margin-top: 2px;" placeholder="Nota (ej. Blooming)">
+      <div style="display: flex; flex-direction: column; align-items: flex-end; flex: 1.5;">
+        <div style="display: flex; align-items: center; gap: 4px; width: 100%;">
+          <input type="number" id="water-${stage.id}" style="padding: 6px; width: 100%;" placeholder="Total g" value="${stage.waterTarget}">
+          <span style="color: var(--color-text-muted); font-size: 0.8rem;">g</span>
+        </div>
+        <div id="delta-${stage.id}" style="height: 16px; margin-top: 2px;"></div>
       </div>
-      <button type="button" class="btn btn-danger" style="padding: 6px;" onclick="window.removeStage('${stage.id}')">
+      <button type="button" class="btn btn-danger" style="padding: 6px; margin-top: 2px;" onclick="window.removeStage('${stage.id}')">
         <svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentColor" d="M19 4H15.5L14.5 3H9.5L8.5 4H5V6H19M6 19C6 20.1 6.9 21 8 21H16C17.1 21 18 20.1 18 19V7H6V19Z"/></svg>
       </button>
     `;
 
-    // Add event listeners to save input changes back to the state array
-    const noteInput = row.querySelector(`#note-${stage.id}`);
-    const waterInput = row.querySelector(`#water-${stage.id}`);
+    pourStagesList.appendChild(row);
+  });
+
+  // Attach event listeners after appending exactly matching the element references
+  recordedStages.forEach((stage, index) => {
+    const noteInput = document.getElementById(`note-${stage.id}`);
+    const waterInput = document.getElementById(`water-${stage.id}`);
     
     noteInput.addEventListener('input', (e) => {
       recordedStages[index].note = e.target.value;
@@ -1053,9 +999,32 @@ function renderPourStages() {
     
     waterInput.addEventListener('input', (e) => {
       recordedStages[index].waterTarget = e.target.value;
+      calculateFlowDeltas();
     });
+  });
 
-    pourStagesList.appendChild(row);
+  calculateFlowDeltas();
+}
+
+function calculateFlowDeltas() {
+  recordedStages.forEach((stage, index) => {
+    const deltaDiv = document.getElementById(`delta-${stage.id}`);
+    if (!deltaDiv) return;
+
+    if (stage.waterTarget && !isNaN(stage.waterTarget) && stage.waterTarget.trim() !== '') {
+      const currentVal = parseFloat(stage.waterTarget);
+      let prevVal = 0;
+      if (index > 0 && recordedStages[index-1].waterTarget && !isNaN(recordedStages[index-1].waterTarget) && recordedStages[index-1].waterTarget.trim() !== '') {
+        prevVal = parseFloat(recordedStages[index-1].waterTarget);
+      }
+      
+      const delta = currentVal - prevVal;
+      const deltaColor = delta < 0 ? 'var(--color-danger)' : 'var(--color-success)';
+      const deltaSign = delta > 0 ? '+' : '';
+      deltaDiv.innerHTML = `<span style="font-size: 0.75rem; color: ${deltaColor}; font-weight: 500;">[ ${deltaSign}${delta.toFixed(1)}g ]</span>`;
+    } else {
+      deltaDiv.innerHTML = '';
+    }
   });
 }
 
@@ -1619,109 +1588,114 @@ function renderRecipes() {
         : `<svg width="22" height="22" viewBox="0 0 24 24" style="color: var(--color-text-secondary);"><path fill="currentColor" d="M12.1,18.55L12,18.65L11.89,18.55C7.14,14.24 4,11.39 4,8.5C4,6.5 5.5,5 7.5,5C9.04,5 10.54,6 11.07,7.36H12.93C13.46,6 14.96,5 16.5,5C18.5,5 20,6.5 20,8.5C20,11.39 16.86,14.24 12.1,18.55M16.5,3C14.76,3 13.09,3.81 12,5.08C10.91,3.81 9.24,3 7.5,3C4.42,3 2,5.41 2,8.5C2,12.27 5.4,15.36 10.55,20.03L12,21.35L13.45,20.03C18.6,15.36 22,12.27 22,8.5C22,5.41 19.58,3 16.5,3Z"/></svg>`;
 
       const html = `
-        <div class="surface ${isFav ? 'favorite-glow' : ''}" style="${isFav ? 'border-color: rgba(231, 76, 60, 0.3);' : ''}">
+        <div class="surface ${isFav ? 'favorite-glow' : ''}" style="${isFav ? 'border-color: rgba(231, 76, 60, 0.3); padding-bottom: 20px;' : 'padding-bottom: 20px;'}">
           <div class="recipe-card-header">
             <div style="display: flex; flex-direction: column; gap: 4px;">
               <div style="display: flex; align-items: center; gap: 6px;">
                 <div class="recipe-method">${ext.method || 'Método Desconocido'}
                   ${ext.isFromNoni ? `<span style="font-size: 0.7rem; color: #a18cf5; background: rgba(161, 140, 245, 0.1); border: 1px solid rgba(161, 140, 245, 0.3); padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; margin-left: 6px;">✨ Creado por Noni</span>` : ''}
                 </div>
-                <button onclick="window.toggleFavorite('${ext.id}')" style="background:none; border:none; padding: 2px; cursor: pointer; display: flex; align-items: center;">
-                  ${heartIcon}
+                <button onclick="window.toggleFavorite('${ext.id}')" style="background:none; border:none; padding: 2px; cursor: pointer; display: flex; align-items: center; font-size: 1.15rem; line-height: 1; margin-left: 4px;">
+                  ${ext.isFavorite ? '❤️' : '🤍'}
                 </button>
               </div>
               <div class="recipe-date">${dateStr}</div>
             </div>
+            
             <div style="display: flex; align-items: center; gap: 12px;">
               ${ratingStars}
+              
+              <div class="context-menu-container">
+                <button class="context-menu-btn" onclick="this.nextElementSibling.classList.toggle('active')">⋮</button>
+                <div class="context-menu-dropdown">
+                  <button class="context-menu-item" onclick="window.exportRecipeToImage('${ext.id}')">📸 Compartir IG</button>
+                  <button class="context-menu-item" onclick="window.openEditModal('${ext.id}')">✏️ Editar Receta</button>
+                  <button class="context-menu-item danger" onclick="window.deleteRecipe('${ext.id}')">🗑️ Eliminar</button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <div class="recipe-card-body" style="padding-top: 16px;">
+            <!-- Slim Flex Grid for Metrics -->
+            <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px;">
+              <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; color: var(--color-text-secondary); display: flex; align-items: center; gap: 4px;">
+                <span style="color: var(--color-text-muted);">⚖️</span> ${ext.coffeeWeight}g / ${ext.waterWeight}ml
+              </div>
+              <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; color: var(--color-text-secondary); display: flex; align-items: center; gap: 4px;">
+                <span style="color: var(--color-text-muted);">💧</span> 1:${ext.ratio}
+              </div>
+              <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; color: var(--color-text-secondary); display: flex; align-items: center; gap: 4px;">
+                <span style="color: var(--color-text-muted);">⚙️</span> ${ext.grindSize} pts
+              </div>
+              <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; color: var(--color-text-secondary); display: flex; align-items: center; gap: 4px;">
+                <span style="color: var(--color-text-muted);">⏱️</span> ${ext.timeFormatted !== '00:00.0' ? ext.timeFormatted : '--:--'}
+              </div>
+              <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; color: var(--color-text-secondary); display: flex; align-items: center; gap: 4px;">
+                <span style="color: var(--color-text-muted);">🌡️</span> ${ext.temperature}°C
+              </div>
+            </div>
+
+            <!-- Notes -->
+            ${ext.notes ? `<div style="font-size: 0.85rem; font-style: italic; color: var(--color-text-muted); padding: 8px 12px; background: rgba(0,0,0,0.2); border-left: 2px solid var(--color-accent); border-radius: 2px; margin-bottom: 16px;">"${ext.notes}"</div>` : ''}
+
+            <!-- Tasting Profile -->
+            ${t ? `
+            <div style="margin-bottom: 20px; font-size: 0.85rem; color: var(--color-text-secondary);">
+              <div style="margin-bottom: 4px; color: var(--color-text-primary);"><strong>${t.origin}</strong> ${t.varietal ? `<span style="color: var(--color-accent); font-weight: 500;">(${t.varietal})</span>` : ''} <span style="color: var(--color-text-muted); font-size: 0.75rem; text-transform: uppercase;">• ${t.process}</span></div>
+              ${t.flavors.length > 0 ? `<div style="color: var(--color-accent); font-size: 0.8rem; margin-top: 6px;">Notas: ${t.flavors.join(' • ')}</div>` : ''}
+              ${t.metrics ? `
+              <div style="margin-top: 10px; display: flex; gap: 12px; flex-wrap: wrap;">
+                <div style="font-size: 0.7rem; display: flex; align-items: center; gap: 4px;"><span style="color: var(--color-text-muted); text-transform: uppercase;">Dulzor</span> <span style="width: 16px; height: 16px; border-radius: 50%; background: var(--color-surface); display: inline-flex; align-items: center; justify-content: center; color: var(--color-success); border: 1px solid var(--color-border);">${t.metrics.sweetness}</span></div>
+                <div style="font-size: 0.7rem; display: flex; align-items: center; gap: 4px;"><span style="color: var(--color-text-muted); text-transform: uppercase;">Acidez</span> <span style="width: 16px; height: 16px; border-radius: 50%; background: var(--color-surface); display: inline-flex; align-items: center; justify-content: center; color: var(--color-success); border: 1px solid var(--color-border);">${t.metrics.acidity}</span></div>
+                <div style="font-size: 0.7rem; display: flex; align-items: center; gap: 4px;"><span style="color: var(--color-text-muted); text-transform: uppercase;">Claridad</span> <span style="width: 16px; height: 16px; border-radius: 50%; background: var(--color-surface); display: inline-flex; align-items: center; justify-content: center; color: var(--color-success); border: 1px solid var(--color-border);">${t.metrics.clarity}</span></div>
+                <div style="font-size: 0.7rem; display: flex; align-items: center; gap: 4px;"><span style="color: var(--color-text-muted); text-transform: uppercase;">Postgusto</span> <span style="width: 16px; height: 16px; border-radius: 50%; background: var(--color-surface); display: inline-flex; align-items: center; justify-content: center; color: var(--color-success); border: 1px solid var(--color-border);">${t.metrics.aftertaste}</span></div>
+              </div>
+              ` : ''}
+            </div>
+            ` : ''}
+
+            <!-- Expandable Pour Stages -->
+            ${ext.pourStages && ext.pourStages.length > 0 ? `
+            <details style="margin-bottom: 20px; color: var(--color-text-secondary); font-size: 0.8rem; background: rgba(0,0,0,0.15); border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.03);">
+              <summary style="padding: 10px 12px; cursor: pointer; user-select: none; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.8; list-style: none; display: flex; align-items: center; gap: 8px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" style="opacity: 0.5;"><path fill="currentColor" d="M3,15H21V19H3V15M3,5H21V9H3V5M3,10H21V14H3V10Z" /></svg> Vertidos
+              </summary>
+              <div style="padding: 0 12px 12px 12px;">
+                ${ext.pourStages.map(stage => `
+                  <div style="display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.02);">
+                    <span style="color: var(--color-accent); font-family: monospace;">${(stage.timeFormatted || '00:00').substring(0, 5)}</span>
+                    <span style="color: var(--color-text-primary);">${stage.note || 'Vertido'}</span>
+                    <span style="color: var(--color-text-secondary);">${stage.waterTarget ? stage.waterTarget + 'ml' : '-'}</span>
+                  </div>
+                `).join('')}
+              </div>
+            </details>
+            ` : ''}
+
+            <!-- Primary Action -->
+            <div style="margin-top: auto;">
+              ${ext.pourStages && ext.pourStages.length > 0 ? `
+              <button class="btn btn-primary" style="width: 100%; padding: 14px; font-size: 0.95rem; font-weight: 600; justify-content: center; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 8px;" onclick="window.startReplication('${ext.id}')">
+                <svg width="18" height="18" viewBox="0 0 24 24"><path fill="currentColor" d="M8,5.14V19.14L19,12.14L8,5.14Z"/></svg>
+                Replicar Extracción
+              </button>` : `
+              <button class="btn btn-primary" style="width: 100%; padding: 14px; font-size: 0.95rem; font-weight: 600; justify-content: center; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 8px; opacity: 0.5; cursor: not-allowed;" disabled>
+                <svg width="18" height="18" viewBox="0 0 24 24"><path fill="currentColor" d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M11,7V13H16.2L15.3,14.5H9.5V7H11Z" /></svg>
+                Sin Replicación Automática
+              </button>
+              `}
               ${(ext.isFromNoni && (!t || t.rating === 0)) ? `
-                <button class="btn" style="padding: 4px 12px; font-size: 0.8rem; background: var(--color-surface); color: var(--color-accent); border: 1px solid var(--color-accent);" onclick="window.rateRecipe('${ext.id}')">
-                  Valorar
+                <button class="btn" style="width: 100%; padding: 10px; margin-top: 8px; font-size: 0.8rem; background: transparent; color: var(--color-accent); border: 1px solid var(--color-accent);" onclick="window.rateRecipe('${ext.id}')">
+                  Valorar Receta
                 </button>
               ` : ''}
-              ${ext.pourStages && ext.pourStages.length > 0 ? `
-                <button class="btn btn-primary" style="padding: 4px 12px; font-size: 0.8rem;" onclick="window.startReplication('${ext.id}')">
-                  Replicar
-                </button>` : ''}
             </div>
-          </div>
-          <div class="recipe-card-body">
-            <div class="recipe-card-grid">
-              <div class="grid-item"><div class="grid-label">Café (g)</div><div class="grid-value">${ext.coffeeWeight}</div></div>
-              <div class="grid-item"><div class="grid-label">Agua (ml)</div><div class="grid-value">${ext.waterWeight}</div></div>
-              <div class="grid-item"><div class="grid-label">Ratio</div><div class="grid-value">1:${ext.ratio}</div></div>
-              <div class="grid-item"><div class="grid-label">Molienda</div><div class="grid-value">${ext.grindSize}</div></div>
-              <div class="grid-item"><div class="grid-label">Tiempo</div><div class="grid-value" style="font-family: monospace;">${ext.timeFormatted || '00:00.0'}</div></div>
-              <div class="grid-item"><div class="grid-label">Temp (ºC)</div><div class="grid-value">${ext.temperature || '--'}</div></div>
-            </div>
-            ${ext.notes ? `<div style="font-size: 0.85rem; color: var(--color-text-secondary); margin-top: 12px;"><strong>Notas:</strong> ${ext.notes}</div>` : ''}
-            <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px;">
-              <button class="btn" style="padding: 4px 12px; font-size: 0.8rem; background: rgba(106, 191, 99, 0.1); color: var(--color-success); border: 1px solid rgba(106,191,99,0.3);" onclick="window.exportRecipeToImage('${ext.id}')">
-                Compartir IG <svg width="14" height="14" viewBox="0 0 24 24" style="vertical-align: middle; margin-left: 4px;"><path fill="currentColor" d="M18 16.08C17.24 16.08 16.56 16.38 16.04 16.85L8.91 12.7C8.96 12.47 9 12.24 9 12S8.96 11.53 8.91 11.3L15.96 7.19C16.5 7.69 17.21 8 18 8C19.66 8 21 6.66 21 5S19.66 2 18 2 15 3.34 15 5C15 5.24 15.04 5.47 15.09 5.7L7.96 9.81C7.44 9.31 6.73 9 6 9C4.34 9 3 10.34 3 12S4.34 15 6 15C6.73 15 7.44 14.69 7.96 14.19L15.09 18.3C15.04 18.53 15 18.76 15 19C15 20.66 16.34 22 18 22S21 20.66 21 19 19.66 16.08 18 16.08Z"/></svg>
-              </button>
-              <button class="btn" style="padding: 4px 12px; font-size: 0.8rem; background: rgba(255,255,255,0.05); color: var(--color-text-secondary);" onclick="window.openEditModal('${ext.id}')">
-                Editar
-              </button>
-              <button class="btn" style="padding: 6px; color: var(--color-danger);" onclick="window.deleteRecipe('${ext.id}')">
-                <svg width="18" height="18" viewBox="0 0 24 24"><path fill="currentColor" d="M19 4H15.5L14.5 3H9.5L8.5 4H5V6H19M6 19C6 20.1 6.9 21 8 21H16C17.1 21 18 20.1 18 19V7H6V19Z"/></svg>
-              </button>
-            </div>
-          </div>
-        </div>
-          </div>
-          <div class="recipe-stat">
-            <span>Dosis</span>
-            ${ext.coffeeWeight}g / ${ext.waterWeight}ml
-          </div>
-          <div class="recipe-stat">
-            <span>Molienda</span>
-            ${ext.grindSize} pts
-          </div>
-          <div class="recipe-stat">
-            <span>Temp.</span>
-            ${ext.temperature}°C
-          </div>
-          <div class="recipe-stat">
-            <span>Tiempo</span>
-            ${ext.timeFormatted !== '00:00.0' ? ext.timeFormatted : '--:--'}
-          </div>
-        </div>
-        
-        ${ext.pourStages && ext.pourStages.length > 0 ? `
-        <div style="margin-top: 12px; background-color: rgba(255,255,255,0.03); border-radius: var(--radius-sm); padding: 8px;">
-          <div style="font-size: 0.75rem; color: var(--color-text-secondary); margin-bottom: 6px; text-transform: uppercase;">Vertidos Registrados</div>
-          ${ext.pourStages.map(stage => `
-            <div style="display: flex; justify-content: space-between; font-size: 0.85rem; padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
-              <span style="color: var(--color-accent); font-family: monospace;">${(stage.timeFormatted || '00:00').substring(0, 5)}</span>
-              <span style="color: var(--color-text-primary);">${stage.note || 'Vertido'}</span>
-              <span style="color: var(--color-text-secondary);">${stage.waterTarget ? stage.waterTarget + 'ml' : '-'}</span>
-            </div>
-          `).join('')}
-        </div>
-        ` : ''}
 
-        ${t ? `
-        <div style="margin-top: 12px; font-size: 0.875rem; color: var(--color-text-secondary);">
-          <div style="margin-bottom: 4px;"><strong>Origen:</strong> ${t.origin} ${t.varietal ? `<span style="color: var(--color-accent); font-weight: 500;">(${t.varietal})</span>` : ''} - ${t.process}</div>
-          ${t.flavors.length > 0 ? `<div style="margin-bottom: 4px; color: var(--color-accent)">Notas: ${t.flavors.join(', ')}</div>` : ''}
-          ${t.metrics ? `
-          <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.05); display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
-            <div style="font-size: 0.75rem;"><span style="color: var(--color-text-muted);">Dulzor:</span> <span style="color: var(--color-success); font-weight: 600;">${t.metrics.sweetness}/5</span></div>
-            <div style="font-size: 0.75rem;"><span style="color: var(--color-text-muted);">Acidez:</span> <span style="color: var(--color-success); font-weight: 600;">${t.metrics.acidity}/5</span></div>
-            <div style="font-size: 0.75rem;"><span style="color: var(--color-text-muted);">Claridad:</span> <span style="color: var(--color-success); font-weight: 600;">${t.metrics.clarity}/5</span></div>
-            <div style="font-size: 0.75rem;"><span style="color: var(--color-text-muted);">Postgusto:</span> <span style="color: var(--color-success); font-weight: 600;">${t.metrics.aftertaste}/5</span></div>
           </div>
-          ` : ''}
         </div>
-        ` : ''}
-        
-        ${ext.notes ? `
-        <div style="margin-top: 8px; font-size: 0.875rem; font-style: italic; color: var(--color-text-muted);">
-          "${ext.notes}"
-        </div>
-        ` : ''}
-      </div>
-    `;
+      `;
     
     const card = document.createElement('div');
     card.innerHTML = html;
@@ -1774,7 +1748,6 @@ window.exportRecipeToImage = async function(id) {
     });
     
     wrapper.style.zIndex = '-1';
-    
     // Convert to Image
     canvas.toBlob(async (blob) => {
       if (!blob) throw new Error("Fallo al generar el archivo Blob.");
@@ -2064,6 +2037,8 @@ function setupNoniAndSettings() {
       } catch (e) {
         if (e.message === "API_KEY_MISSING") {
           typingBubble.innerHTML = `<strong style="color: var(--color-danger); display: block; margin-bottom: 4px; font-size: 0.8rem;">Error</strong>Falta la API Key en ajustes.`;
+        } else if (e.message.includes("503")) {
+          typingBubble.innerHTML = `<strong style="color: var(--color-warning); display: block; margin-bottom: 4px; font-size: 0.8rem;">Noni cansada 💤</strong>¡Guau! Hay mucha fila en la cafetería mundial ahora mismo (El cerebro de IA está saturado).<br><br><span style="font-size: 0.7rem; color: var(--color-text-secondary);">El servidor de Google reporta alta demanda. Intenta preguntarme en un par de minutos. 🐾</span>`;
         } else {
           typingBubble.innerHTML = `<strong style="color: var(--color-danger); display: block; margin-bottom: 4px; font-size: 0.8rem;">Error del Servidor</strong>${e.message}<br><br><span style="font-size: 0.7rem; color: var(--color-text-secondary);">Guau... revisa que tu llave no tenga espacios.</span>`;
         }
@@ -2153,6 +2128,7 @@ function setupPantryForm() {
       roaster: document.getElementById('pantry-roaster').value,
       name: document.getElementById('pantry-name').value,
       origin: document.getElementById('pantry-origin').value,
+      varietal: document.getElementById('pantry-varietal').value,
       process: document.getElementById('pantry-process').value,
       roastDate: document.getElementById('pantry-roast-date').value,
       initialWeight: initialW,
@@ -2204,25 +2180,13 @@ window.renderPantry = function() {
             <div style="font-weight: bold; font-size: 1.1rem; color: ${isLow ? 'var(--color-danger)' : 'var(--color-success)'};">${bag.currentWeight.toFixed(1)}g</div>
             <div style="font-size: 0.7rem; color: var(--color-text-muted);">/ ${bag.initialWeight}g</div>
           </div>
-        </div>
-        
-        <div style="font-size: 0.8rem; color: var(--color-text-muted); margin-bottom: 12px; position: relative; z-index: 2;">
-          ${bag.origin} • ${bag.process} • Tostado: ${new Date(bag.roastDate).toLocaleDateString()}
-        </div>
-        
-        <div style="width: 100%; height: 6px; background-color: rgba(255,255,255,0.05); border-radius: 3px; margin-bottom: 16px; position: relative; z-index: 2; overflow: hidden;">
-          <div style="width: ${p}%; height: 100%; background-color: ${isLow ? 'var(--color-danger)' : 'var(--color-accent)'}; transition: width 0.3s ease;"></div>
-        </div>
-
-        <div style="display: flex; gap: 8px; position: relative; z-index: 2;">
-          <button onclick="window.editPantryWeight('${bag.firebaseId}', ${bag.currentWeight})" style="flex: 1; padding: 6px; background: transparent; border: 1px solid var(--color-border); color: var(--color-text-secondary); border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.8rem;">
-            <svg width="14" height="14" viewBox="0 0 24 24"><path fill="currentColor" d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" style="display:none;"/><path fill="currentColor" d="M14.06,9.02L15.98,10.94L5.92,21H4V19.08L14.06,9.02M17.66,3.34C17.85,3.15 18.1,3.05 18.35,3.06C18.61,3.05 18.86,3.15 19.05,3.34L20.66,4.95C21.05,5.34 21.05,5.97 20.66,6.36L18.71,8.31L16.79,6.39L18.66,4.52L17.66,3.5L14.06,7.1L12.14,5.18L17.66,3.34Z" /></svg>
-            Corregir Peso
-          </button>
-          <button onclick="window.deletePantryBag('${bag.firebaseId}')" style="flex: 1; padding: 6px; background: transparent; border: 1px solid var(--color-border); color: var(--color-danger); border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.8rem;">
-            <svg width="14" height="14" viewBox="0 0 24 24"><path fill="currentColor" d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" /></svg>
-            Eliminar
-          </button>
+        <div class="context-menu-container" style="position: absolute; top: 12px; right: 12px; z-index: 3;">
+          <button class="context-menu-btn" onclick="this.nextElementSibling.classList.toggle('active')">⋮</button>
+          <div class="context-menu-dropdown">
+            <button class="context-menu-item" onclick="window.editPantryVarietal('${bag.firebaseId}', '${bag.varietal || ''}')">📝 Editar Variedad</button>
+            <button class="context-menu-item" onclick="window.editPantryWeight('${bag.firebaseId}', ${bag.currentWeight})">⚖️ Editar Peso</button>
+            <button class="context-menu-item danger" onclick="window.deletePantryBag('${bag.firebaseId}')">🗑️ Eliminar Bolsa</button>
+          </div>
         </div>
       `;
       container.appendChild(card);
@@ -2274,6 +2238,19 @@ window.editPantryWeight = async function(id, currentWeight) {
   }
 };
 
+window.editPantryVarietal = async function(id, currentVarietal) {
+  const newVarietal = prompt("¿Qué variedad o tipo de grano es este café?", currentVarietal || "");
+  if (newVarietal === null) return;
+  
+  if (newVarietal.trim() !== '') {
+    try {
+      await db.collection("pantry").doc(id).update({ varietal: newVarietal.trim() });
+    } catch(e) {
+      alert("Error al actualizar la variedad.");
+    }
+  }
+};
+
 window.deletePantryBag = async function(id) {
   const confirmDel = confirm("¿Estás seguro de que deseas eliminar esta bolsa de café de la Alacena?");
   if (confirmDel) {
@@ -2288,3 +2265,13 @@ window.deletePantryBag = async function(id) {
 // Start app
 setupNoniAndSettings();
 init();
+
+// Global Context Menu click handler
+document.addEventListener('click', (e) => {
+  const isMenuBtn = e.target.closest('.context-menu-btn');
+  if (!isMenuBtn) {
+    document.querySelectorAll('.context-menu-dropdown.active').forEach(menu => {
+      menu.classList.remove('active');
+    });
+  }
+});
