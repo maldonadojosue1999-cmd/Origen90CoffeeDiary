@@ -203,51 +203,61 @@
                 </select>
               </div>
 
-              <div class="input-row">
-                <div class="form-group">
-                  <label for="bean-origin">Origen del Grano</label>
-                  <input type="text" id="bean-origin" required placeholder="ej. Etiopía Yirgacheffe">
-                </div>
-                <div class="form-group">
-                  <label for="bean-varietal">Variedad</label>
-                  <select id="bean-varietal" required>
-                    <option value="" disabled selected>Selecciona</option>
-                    <option value="Blend / Mezcla">Blend / Mezcla</option>
-                    <option value="Bourbon">Bourbon</option>
-                    <option value="Bourbon Rosado">Bourbon Rosado</option>
-                    <option value="Caturra">Caturra</option>
-                    <option value="Catuai">Catuai</option>
-                    <option value="Castillo">Castillo</option>
-                    <option value="Colombia">Colombia</option>
-                    <option value="Geisha / Gesha">Geisha / Gesha</option>
-                    <option value="Heirloom (Etiopía)">Heirloom (Etiopía)</option>
-                    <option value="Maragogype">Maragogype</option>
-                    <option value="Mundo Novo">Mundo Novo</option>
-                    <option value="Pacamara">Pacamara</option>
-                    <option value="Pacas">Pacas</option>
-                    <option value="SL28 / SL34">SL28 / SL34</option>
-                    <option value="Typica">Typica</option>
-                    <option value="Wush Wush">Wush Wush</option>
-                    <option value="Otra">Otra</option>
-                  </select>
-                  <input type="text" id="bean-varietal-extra" class="hidden" style="margin-top: 8px;" placeholder="¿Qué granos lo componen?" />
-                </div>
+              <div class="form-group" style="margin-bottom: 24px; padding: 12px; background: rgba(106, 191, 99, 0.05); border: 1px solid rgba(106, 191, 99, 0.2); border-radius: 8px;">
+                <label for="cata-pantry-id" style="color: var(--color-success);">Selecciona grano de tu Alacena</label>
+                <select id="cata-pantry-id" style="border-color: rgba(106, 191, 99, 0.3);">
+                  <option value="">Otro grano (Ingreso manual)</option>
+                  <!-- Populated via JS -->
+                </select>
               </div>
 
-              <div class="input-row">
-                <div class="form-group">
-                  <label for="bean-process">Proceso</label>
-                  <select id="bean-process" required>
-                    <option value="Lavado">Lavado</option>
-                    <option value="Natural">Natural</option>
-                    <option value="Honey">Honey</option>
-                    <option value="Anaeróbico">Anaeróbico</option>
-                    <option value="Otro">Otro</option>
-                  </select>
+              <div id="manual-bean-details">
+                <div class="input-row">
+                  <div class="form-group">
+                    <label for="bean-origin">Origen del Grano</label>
+                    <input type="text" id="bean-origin" required placeholder="ej. Etiopía Yirgacheffe">
+                  </div>
+                  <div class="form-group">
+                    <label for="bean-varietal">Variedad</label>
+                    <select id="bean-varietal" required>
+                      <option value="" disabled selected>Selecciona</option>
+                      <option value="Blend / Mezcla">Blend / Mezcla</option>
+                      <option value="Bourbon">Bourbon</option>
+                      <option value="Bourbon Rosado">Bourbon Rosado</option>
+                      <option value="Caturra">Caturra</option>
+                      <option value="Catuai">Catuai</option>
+                      <option value="Castillo">Castillo</option>
+                      <option value="Colombia">Colombia</option>
+                      <option value="Geisha / Gesha">Geisha / Gesha</option>
+                      <option value="Heirloom (Etiopía)">Heirloom (Etiopía)</option>
+                      <option value="Maragogype">Maragogype</option>
+                      <option value="Mundo Novo">Mundo Novo</option>
+                      <option value="Pacamara">Pacamara</option>
+                      <option value="Pacas">Pacas</option>
+                      <option value="SL28 / SL34">SL28 / SL34</option>
+                      <option value="Typica">Typica</option>
+                      <option value="Wush Wush">Wush Wush</option>
+                      <option value="Otra">Otra</option>
+                    </select>
+                    <input type="text" id="bean-varietal-extra" class="hidden" style="margin-top: 8px;" placeholder="¿Qué granos lo componen?" />
+                  </div>
                 </div>
-                <div class="form-group">
-                  <label for="roast-date">Fecha de Tueste</label>
-                  <input type="date" id="roast-date" required>
+
+                <div class="input-row">
+                  <div class="form-group">
+                    <label for="bean-process">Proceso</label>
+                    <select id="bean-process" required>
+                      <option value="Lavado">Lavado</option>
+                      <option value="Natural">Natural</option>
+                      <option value="Honey">Honey</option>
+                      <option value="Anaeróbico">Anaeróbico</option>
+                      <option value="Otro">Otro</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="roast-date">Fecha de Tueste</label>
+                    <input type="date" id="roast-date" required>
+                  </div>
                 </div>
               </div>
             </div>

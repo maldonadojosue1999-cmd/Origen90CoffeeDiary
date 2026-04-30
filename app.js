@@ -1282,6 +1282,26 @@ function setupForms() {
 
   // Cata Submit
   const formCata = document.getElementById('form-cata');
+  const cataPantrySelect = document.getElementById('cata-pantry-id');
+  const manualBeanDetails = document.getElementById('manual-bean-details');
+  if (cataPantrySelect && manualBeanDetails) {
+    cataPantrySelect.addEventListener('change', (e) => {
+      if (e.target.value === "") {
+        manualBeanDetails.classList.remove('hidden');
+        document.getElementById('bean-origin').required = true;
+        document.getElementById('bean-varietal').required = true;
+        document.getElementById('bean-process').required = true;
+        document.getElementById('roast-date').required = true;
+      } else {
+        manualBeanDetails.classList.add('hidden');
+        document.getElementById('bean-origin').required = false;
+        document.getElementById('bean-varietal').required = false;
+        document.getElementById('bean-process').required = false;
+        document.getElementById('roast-date').required = false;
+      }
+    });
+  }
+
   formCata.addEventListener('submit', async (e) => {
     e.preventDefault();
     
@@ -1299,7 +1319,22 @@ function setupForms() {
 
     const baseVarietal = document.getElementById('bean-varietal').value;
     const extraVarietal = document.getElementById('bean-varietal-extra').value.trim();
-    const finalVarietal = extraVarietal ? `${baseVarietal} (${extraVarietal})` : baseVarietal;
+    let finalVarietal = extraVarietal ? `${baseVarietal} (${extraVarietal})` : baseVarietal;
+
+    let beanOrigin = document.getElementById('bean-origin').value;
+    let beanProcess = document.getElementById('bean-process').value;
+    let roastDate = document.getElementById('roast-date').value;
+
+    const cataPantryId = document.getElementById('cata-pantry-id') ? document.getElementById('cata-pantry-id').value : "";
+    if (cataPantryId) {
+      const selectedBag = pantry.find(p => p.firebaseId === cataPantryId);
+      if (selectedBag) {
+        beanOrigin = selectedBag.origin;
+        finalVarietal = selectedBag.varietal;
+        beanProcess = selectedBag.process;
+        roastDate = selectedBag.roastDate;
+      }
+    }
 
     const metricsData = {
       sweetness: parseInt(document.getElementById('metric-sweetness').value || 3),
@@ -1311,10 +1346,10 @@ function setupForms() {
     const newTasting = {
       id: Date.now().toString(),
       extractionId: document.getElementById('cata-extraction').value,
-      origin: document.getElementById('bean-origin').value,
+      origin: beanOrigin,
       varietal: finalVarietal,
-      process: document.getElementById('bean-process').value,
-      roastDate: document.getElementById('roast-date').value,
+      process: beanProcess,
+      roastDate: roastDate,
       flavors: selectedFlavors,
       metrics: metricsData,
       rating: parseInt(rating)
@@ -2204,21 +2239,37 @@ window.renderPantry = function() {
 };
 
 window.updatePantryDropdown = function() {
-  const select = document.getElementById('ext-pantry-id');
-  if(!select) return;
-  const oldValue = select.value;
-  select.innerHTML = '<option value="">Usar café general (No descontar)</option>';
+  const selectExt = document.getElementById('ext-pantry-id');
+  const selectCata = document.getElementById('cata-pantry-id');
   
   const activeBags = pantry.filter(p => p.currentWeight > 0);
-  activeBags.forEach(bag => {
-    const opt = document.createElement('option');
-    opt.value = bag.firebaseId;
-    opt.textContent = `${bag.name} - ${bag.roaster} (${bag.currentWeight.toFixed(1)}g)`;
-    select.appendChild(opt);
-  });
   
-  if (activeBags.some(b => b.firebaseId === oldValue)) {
-    select.value = oldValue;
+  if (selectExt) {
+    const oldValueExt = selectExt.value;
+    selectExt.innerHTML = '<option value="">Usar café general (No descontar)</option>';
+    activeBags.forEach(bag => {
+      const opt = document.createElement('option');
+      opt.value = bag.firebaseId;
+      opt.textContent = `${bag.name} - ${bag.roaster} (${bag.currentWeight.toFixed(1)}g)`;
+      selectExt.appendChild(opt);
+    });
+    if (activeBags.some(b => b.firebaseId === oldValueExt)) {
+      selectExt.value = oldValueExt;
+    }
+  }
+
+  if (selectCata) {
+    const oldValueCata = selectCata.value;
+    selectCata.innerHTML = '<option value="">Otro grano (Ingreso manual)</option>';
+    pantry.forEach(bag => {
+      const opt = document.createElement('option');
+      opt.value = bag.firebaseId;
+      opt.textContent = `${bag.name} - ${bag.roaster}`;
+      selectCata.appendChild(opt);
+    });
+    if (pantry.some(b => b.firebaseId === oldValueCata)) {
+      selectCata.value = oldValueCata;
+    }
   }
 };
 
