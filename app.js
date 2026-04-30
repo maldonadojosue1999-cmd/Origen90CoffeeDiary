@@ -1199,6 +1199,14 @@ function setupInteractivity() {
     document.getElementById('edit-recipe-modal').classList.add('hidden');
   });
 
+  // Edit Pantry Modal closing
+  const btnCloseEditPantry = document.getElementById('btn-close-edit-pantry');
+  if (btnCloseEditPantry) {
+    btnCloseEditPantry.addEventListener('click', () => {
+      document.getElementById('edit-pantry-modal').classList.add('hidden');
+    });
+  }
+
   // Recetario Filters
   document.querySelectorAll('#recetario-filters .chip').forEach(chip => {
     chip.addEventListener('click', (e) => {
@@ -1413,6 +1421,41 @@ function setupForms() {
       } catch (error) {
         console.error("Error updating recipe:", error);
         alert('Error al actualizar la receta.');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Guardar Cambios';
+      }
+    });
+  }
+
+  // Edit Pantry Submit
+  const formEditPantry = document.getElementById('form-edit-pantry');
+  if (formEditPantry) {
+    formEditPantry.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const firebaseId = document.getElementById('edit-pantry-id').value;
+      if (!firebaseId) return;
+
+      const submitBtn = formEditPantry.querySelector('button[type="submit"]');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Guardando...';
+
+      const updates = {
+        roaster: document.getElementById('edit-pantry-roaster').value,
+        name: document.getElementById('edit-pantry-name').value,
+        varietal: document.getElementById('edit-pantry-varietal').value,
+        origin: document.getElementById('edit-pantry-origin').value,
+        process: document.getElementById('edit-pantry-process').value,
+        currentWeight: parseFloat(document.getElementById('edit-pantry-weight').value)
+      };
+
+      try {
+        await db.collection("pantry").doc(firebaseId).update(updates);
+        document.getElementById('edit-pantry-modal').classList.add('hidden');
+        alert('Café actualizado correctamente.');
+      } catch (error) {
+        console.error("Error updating pantry:", error);
+        alert('Error al actualizar el café.');
       } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = 'Guardar Cambios';
@@ -2203,7 +2246,7 @@ window.renderPantry = function() {
       const isLow = p < 20;
       
       const card = document.createElement('div');
-      card.style.cssText = `background: var(--color-bg); padding: 16px; border-radius: var(--radius-sm); border: 1px solid var(--color-border); opacity: ${opacity}; position: relative; overflow: hidden;`;
+      card.style.cssText = `background: var(--color-bg); padding: 16px; border-radius: var(--radius-sm); border: 1px solid var(--color-border); opacity: ${opacity}; position: relative;`;
       
       card.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; position: relative; z-index: 2;">
@@ -2215,11 +2258,11 @@ window.renderPantry = function() {
             <div style="font-weight: bold; font-size: 1.1rem; color: ${isLow ? 'var(--color-danger)' : 'var(--color-success)'};">${bag.currentWeight.toFixed(1)}g</div>
             <div style="font-size: 0.7rem; color: var(--color-text-muted);">/ ${bag.initialWeight}g</div>
           </div>
+        </div>
         <div class="context-menu-container" style="position: absolute; top: 12px; right: 12px; z-index: 3;">
           <button class="context-menu-btn" onclick="this.nextElementSibling.classList.toggle('active')">⋮</button>
           <div class="context-menu-dropdown">
-            <button class="context-menu-item" onclick="window.editPantryVarietal('${bag.firebaseId}', '${bag.varietal || ''}')">📝 Editar Variedad</button>
-            <button class="context-menu-item" onclick="window.editPantryWeight('${bag.firebaseId}', ${bag.currentWeight})">⚖️ Editar Peso</button>
+            <button class="context-menu-item" onclick="window.openEditPantryModal('${bag.firebaseId}')">✏️ Editar Café</button>
             <button class="context-menu-item danger" onclick="window.deletePantryBag('${bag.firebaseId}')">🗑️ Eliminar Bolsa</button>
           </div>
         </div>
@@ -2273,33 +2316,27 @@ window.updatePantryDropdown = function() {
   }
 };
 
-window.editPantryWeight = async function(id, currentWeight) {
-  const newWeightStr = prompt("¿Cuántos gramos le quedan a esta bolsa realmente? (ej. 150)", currentWeight.toFixed(1));
-  if (newWeightStr === null) return;
-  const newWeight = parseFloat(newWeightStr.trim());
-  
-  if (!isNaN(newWeight) && newWeight >= 0) {
-    try {
-      await db.collection("pantry").doc(id).update({ currentWeight: newWeight });
-    } catch(e) {
-      alert("Error al actualizar el peso de la bolsa.");
-    }
-  } else {
-    alert("Peso inválido. Debes ingresar un número válido (ej. 150.5).");
-  }
-};
+window.openEditPantryModal = function(id) {
+  const bag = pantry.find(p => p.firebaseId === id);
+  if (!bag) return;
 
-window.editPantryVarietal = async function(id, currentVarietal) {
-  const newVarietal = prompt("¿Qué variedad o tipo de grano es este café?", currentVarietal || "");
-  if (newVarietal === null) return;
+  document.getElementById('edit-pantry-id').value = bag.firebaseId;
+  document.getElementById('edit-pantry-roaster').value = bag.roaster || '';
+  document.getElementById('edit-pantry-name').value = bag.name || '';
+  document.getElementById('edit-pantry-varietal').value = bag.varietal || '';
+  document.getElementById('edit-pantry-origin').value = bag.origin || '';
   
-  if (newVarietal.trim() !== '') {
-    try {
-      await db.collection("pantry").doc(id).update({ varietal: newVarietal.trim() });
-    } catch(e) {
-      alert("Error al actualizar la variedad.");
-    }
+  const processSelect = document.getElementById('edit-pantry-process');
+  let processOptionExists = Array.from(processSelect.options).some(o => o.value === bag.process);
+  if (!processOptionExists && bag.process) {
+    const newOption = new Option(bag.process, bag.process);
+    processSelect.add(newOption);
   }
+  processSelect.value = bag.process || 'Lavado';
+  
+  document.getElementById('edit-pantry-weight').value = bag.currentWeight;
+
+  document.getElementById('edit-pantry-modal').classList.remove('hidden');
 };
 
 window.deletePantryBag = async function(id) {

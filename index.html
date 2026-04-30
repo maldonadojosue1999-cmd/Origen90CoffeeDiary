@@ -585,6 +585,61 @@
       </div>
     </div>
 
+    <!-- Edit Pantry Modal -->
+    <div id="edit-pantry-modal" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px;">
+      <div class="surface" style="width: 100%; max-width: 400px; max-height: 90vh; overflow-y: auto; border: 1px solid var(--color-border); position: relative;">
+        <button type="button" id="btn-close-edit-pantry" style="position: absolute; top: 12px; right: 12px; background: transparent; border: none; color: var(--color-text-secondary); padding: 4px;">
+          <svg width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" /></svg>
+        </button>
+        <h2 style="font-size: 1.25rem; margin-bottom: 16px; margin-top: 4px;">Editar Café</h2>
+        <form id="form-edit-pantry">
+          <input type="hidden" id="edit-pantry-id">
+          
+          <div class="input-row">
+            <div class="form-group">
+              <label for="edit-pantry-roaster">Tostador / Marca</label>
+              <input type="text" id="edit-pantry-roaster" required>
+            </div>
+            <div class="form-group">
+              <label for="edit-pantry-name">Café / Finca</label>
+              <input type="text" id="edit-pantry-name" required>
+            </div>
+          </div>
+          <div class="input-row">
+            <div class="form-group">
+              <label for="edit-pantry-varietal">Variedad / Grano</label>
+              <input type="text" id="edit-pantry-varietal" required>
+            </div>
+            <div class="form-group">
+              <label for="edit-pantry-origin">Origen</label>
+              <input type="text" id="edit-pantry-origin" required>
+            </div>
+          </div>
+          <div class="input-row">
+            <div class="form-group">
+              <label for="edit-pantry-process">Proceso</label>
+              <select id="edit-pantry-process" required>
+                <option value="Lavado">Lavado</option>
+                <option value="Natural">Natural</option>
+                <option value="Honey">Honey</option>
+                <option value="Anaeróbico">Anaeróbico</option>
+                <option value="Láctico">Láctico / Térmico</option>
+                <option value="Blend">Blend</option>
+                <option value="Experimental">Experimental</option>
+                <option value="Otro">Otro</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="edit-pantry-weight">Peso (g)</label>
+              <input type="number" id="edit-pantry-weight" min="0" step="0.1" required>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-full mt-md">Guardar Cambios</button>
+        </form>
+      </div>
+    </div>
+
     <!-- Settings Modal -->
     <div id="settings-modal" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px;">
       <div class="surface" style="width: 100%; max-width: 400px; border: 1px solid var(--color-border); position: relative;">
