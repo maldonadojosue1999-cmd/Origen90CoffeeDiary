@@ -17,6 +17,54 @@ let extractions = [];
 let tastings = [];
 let pantry = [];
 
+// Theme & Toasts
+function setupTheme() {
+  const btnThemeToggle = document.getElementById('btn-theme-toggle');
+  const currentTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+  if (currentTheme === 'light') {
+    document.body.setAttribute('data-theme', 'light');
+  }
+
+  if (btnThemeToggle) {
+    btnThemeToggle.addEventListener('click', () => {
+      const isLight = document.body.getAttribute('data-theme') === 'light';
+      if (isLight) {
+        document.body.removeAttribute('data-theme');
+        localStorage.setItem('theme', 'dark');
+      } else {
+        document.body.setAttribute('data-theme', 'light');
+        localStorage.setItem('theme', 'light');
+      }
+    });
+  }
+}
+
+window.showToast = function(message, type = 'success') {
+  const container = document.getElementById('toast-container');
+  if (!container) {
+    console.log(`[Toast ${type}]`, message);
+    return;
+  }
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  const icon = type === 'success' 
+    ? `<svg width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C6.5 2 2 6.5 2 12S6.5 22 12 22 22 17.5 22 12 17.5 2 12 2M10 17L5 12L6.41 10.59L10 14.17L17.59 6.58L19 8L10 17Z"/></svg>`
+    : `<svg width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M13 14H11V9H13M13 18H11V16H13M1 21H23L12 2L1 21Z"/></svg>`;
+  toast.innerHTML = `${icon} <span>${message}</span>`;
+  container.appendChild(toast);
+  setTimeout(() => {
+    if (toast.parentNode) toast.parentNode.removeChild(toast);
+  }, 3500);
+};
+
+window.alert = function(msg) {
+  const text = String(msg).toLowerCase();
+  const isError = text.includes('error') || text.includes('por favor') || text.includes('inválido');
+  window.showToast(msg, isError ? 'error' : 'success');
+};
+
+setupTheme();
+
 // Guide state
 let replicateMode = false;
 let replicateStages = [];
@@ -257,15 +305,81 @@ const varietalRecommendations = {
 };
 
 // SCA Flavor Wheel Data
-const scaData = [
-  { category: 'Floral', color: '#eabae8', flavors: ['Manzanilla', 'Rosa', 'Jazmín'] },
-  { category: 'Frutal', color: '#e04c5e', flavors: ['Mora', 'Fresa', 'Frambuesa', 'Arándano', 'Uva', 'Manzana', 'Melocotón', 'Pera', 'Naranja', 'Limón', 'Toronja'] },
-  { category: 'Ácido / Fermentado', color: '#e4cc4a', flavors: ['Vino', 'Agrío', 'Acético', 'Cítrico'] },
-  { category: 'Verde / Vegetal', color: '#6abf63', flavors: ['Aceite de oliva', 'Crudo', 'Verde', 'Hierba'] },
-  { category: 'Tostado', color: '#c5523f', flavors: ['Pipa', 'Tabaco', 'Quemado', 'Cereal', 'Ahumado'] },
-  { category: 'Especias', color: '#c43343', flavors: ['Pimienta', 'Clavo', 'Canela', 'Nuez Moscada', 'Anís'] },
-  { category: 'Nuez / Cacao', color: '#ab7045', flavors: ['Almendra', 'Avellana', 'Cacahuete', 'Nuez', 'Chocolate Negro', 'Chocolate con Leche'] },
-  { category: 'Dulce', color: '#dc7a3e', flavors: ['Vainilla', 'Melaza', 'Miel', 'Caramelo', 'Azúcar Moreno'] },
+// Phase 3: Rueda SCA (3 levels)
+const flavorWheel = [
+  {
+    id: 'fruity', name: 'Frutal', color: '#D4423E',
+    children: [
+      { id: 'berry', name: 'Bayas', children: ['Mora', 'Frambuesa', 'Arándano', 'Fresa'] },
+      { id: 'dried-fruit', name: 'Fruta seca', children: ['Pasa', 'Ciruela pasa'] },
+      { id: 'other-fruit', name: 'Otras frutas', children: ['Coco', 'Cereza', 'Granada', 'Piña', 'Uva', 'Manzana', 'Durazno', 'Pera'] },
+      { id: 'citrus', name: 'Cítricos', children: ['Toronja', 'Naranja', 'Limón', 'Lima'] },
+    ],
+  },
+  {
+    id: 'sour-fermented', name: 'Ácido / Fermentado', color: '#E8B021',
+    children: [
+      { id: 'sour', name: 'Ácido', children: ['Aromático ácido', 'Ácido acético', 'Ácido butírico', 'Ácido isovalérico', 'Ácido cítrico', 'Ácido málico'] },
+      { id: 'alcohol-fermented', name: 'Alcohol / Fermentado', children: ['Vino', 'Whiskey', 'Fermentado', 'Sobrefermentado'] },
+    ],
+  },
+  {
+    id: 'green-vegetative', name: 'Verde / Vegetal', color: '#5BA84F',
+    children: [
+      { id: 'olive-oil', name: 'Aceite de oliva', children: [] },
+      { id: 'raw', name: 'Crudo', children: [] },
+      { id: 'green-veg', name: 'Verde / Vegetal', children: ['Bajo maduración', 'Guisante', 'Vegetal crudo', 'Hierba fresca', 'Oscuro verde', 'Vegetal', 'Heno', 'Herbáceo'] },
+      { id: 'beany', name: 'Frijolesco', children: [] },
+    ],
+  },
+  {
+    id: 'other', name: 'Otros', color: '#3B82C9',
+    children: [
+      { id: 'papery-musty', name: 'Papel / Mohoso', children: ['Rancio', 'Cartón', 'Papel', 'Madera', 'Mohoso', 'Polvoriento', 'Terroso'] },
+      { id: 'chemical', name: 'Químico', children: ['Caucho', 'Hule', 'Bilis', 'Petróleo', 'Sulfuroso', 'Medicinal'] },
+    ],
+  },
+  {
+    id: 'roasted', name: 'Tostado', color: '#9B5538',
+    children: [
+      { id: 'pipe-tobacco', name: 'Tabaco de pipa', children: [] },
+      { id: 'tobacco', name: 'Tabaco', children: [] },
+      { id: 'burnt', name: 'Quemado', children: ['Acre', 'Cenizas', 'Humo', 'Café marrón', 'Quemado'] },
+      { id: 'cereal', name: 'Cereal', children: ['Granos', 'Maltoso'] },
+    ],
+  },
+  {
+    id: 'spices', name: 'Especias', color: '#B83A4F',
+    children: [
+      { id: 'pungent', name: 'Picante', children: [] },
+      { id: 'pepper', name: 'Pimienta', children: [] },
+      { id: 'brown-spice', name: 'Especias dulces', children: ['Anís', 'Nuez moscada', 'Canela', 'Clavo'] },
+    ],
+  },
+  {
+    id: 'nutty-cocoa', name: 'Nuez / Cacao', color: '#8B5E3C',
+    children: [
+      { id: 'nutty', name: 'Nueces', children: ['Maní', 'Avellana', 'Almendra'] },
+      { id: 'cocoa', name: 'Cacao', children: ['Chocolate', 'Chocolate oscuro'] },
+    ],
+  },
+  {
+    id: 'sweet', name: 'Dulce', color: '#E07A5F',
+    children: [
+      { id: 'brown-sugar', name: 'Azúcar morena', children: ['Melaza', 'Jarabe de arce', 'Azúcar caramelizada', 'Miel'] },
+      { id: 'vanilla', name: 'Vainilla', children: [] },
+      { id: 'vanillin', name: 'Vainillina', children: [] },
+      { id: 'overall-sweet', name: 'Dulce general', children: [] },
+      { id: 'sweet-aromatics', name: 'Aromáticos dulces', children: [] },
+    ],
+  },
+  {
+    id: 'floral', name: 'Floral', color: '#C76E9C',
+    children: [
+      { id: 'black-tea', name: 'Té negro', children: [] },
+      { id: 'floral-sub', name: 'Floral', children: ['Manzanilla', 'Rosa', 'Jazmín'] },
+    ],
+  },
 ];
 
 // DOM Elements
@@ -588,12 +702,18 @@ function init() {
   setupNavigation();
   setupTimer();
   setupReplicationTimer();
-  renderSCAFlavors();
+
   setupForms();
   setupInteractivity();
   setupPantryForm();
+  initInteractiveBitacora();
+  initInteractiveCata();
+  initInteractiveCups();
+  initInteractiveWheel();
   setupInspirationFilters();
   renderInspiration();
+  setupRecetarioSearch();
+  setupQuickPreview();
   initFirebaseSync();
 }
 
@@ -634,37 +754,819 @@ function initFirebaseSync() {
 function setupNavigation() {
   navItems.forEach(item => {
     item.addEventListener('click', () => {
-      // Update active nav
-      navItems.forEach(n => n.classList.remove('active'));
-      item.classList.add('active');
-
-      // Update header
-      headerSubtitle.textContent = item.getAttribute('data-title');
-
-      // Update view
       const targetId = item.getAttribute('data-target');
-      views.forEach(view => {
-        if (view.id === targetId) {
-          view.classList.remove('hidden');
-        } else {
-          view.classList.add('hidden');
-        }
-      });
+      
+      const updateDOM = () => {
+        // Update active nav
+        navItems.forEach(n => n.classList.remove('active'));
+        item.classList.add('active');
+
+        // Update header
+        headerSubtitle.textContent = item.getAttribute('data-title');
+
+        // Update view
+        views.forEach(view => {
+          if (view.id === targetId) {
+            view.classList.remove('hidden');
+          } else {
+            view.classList.add('hidden');
+          }
+        });
+      };
+
+      if (!document.startViewTransition) {
+        updateDOM();
+      } else {
+        document.startViewTransition(() => updateDOM());
+      }
     });
   });
 }
 
+// Interactive Bitacora State
+const METHOD_PROFILES = {
+  "V60 02": { targetTime: 180, ratioIdeal: 16, ratioMin: 14, ratioMax: 17, tempMin: 92, tempMax: 96 },
+  "Dripper de cerámica 01": { targetTime: 150, ratioIdeal: 15.5, ratioMin: 14, ratioMax: 17, tempMin: 92, tempMax: 96 },
+  "AeroPress": { targetTime: 90, ratioIdeal: 14, ratioMin: 12, ratioMax: 16, tempMin: 80, tempMax: 92 },
+  "Mocca": { targetTime: 240, ratioIdeal: 10, ratioMin: 8, ratioMax: 12, tempMin: 0, tempMax: 0 },
+  "Prensa Francesa": { targetTime: 240, ratioIdeal: 15, ratioMin: 13, ratioMax: 17, tempMin: 92, tempMax: 96 },
+  "Bebida Preparada": { targetTime: 240, ratioIdeal: 15, ratioMin: 10, ratioMax: 20, tempMin: 80, tempMax: 100 }
+};
+
+let currentTargetTime = 240;
+let animFrameId = null;
+
+// Phase 3: Interactive Sensory Tasting
+const SENSORY_MAP = {
+  sweetness: {
+    color: '#E07A5F',
+    levels: [
+      { val: 1, emoji: '🫥', label: 'Imperceptible' },
+      { val: 2, emoji: '😐', label: 'Sutil' },
+      { val: 3, emoji: '🙂', label: 'Balanceado' },
+      { val: 4, emoji: '😋', label: 'Marcado' },
+      { val: 5, emoji: '🤩', label: 'Intenso, casi azucarado' },
+    ],
+  },
+  acidity: {
+    color: '#E8B021',
+    levels: [
+      { val: 1, emoji: '😶', label: 'Plana' },
+      { val: 2, emoji: '🙂', label: 'Suave' },
+      { val: 3, emoji: '😊', label: 'Vibrante y limpia' },
+      { val: 4, emoji: '🤔', label: 'Brillante y compleja' },
+      { val: 5, emoji: '😬', label: 'Punzante / agresiva' },
+    ],
+  },
+  clarity: {
+    color: '#3B82C9',
+    levels: [
+      { val: 1, emoji: '🌫️', label: 'Turbia / confusa' },
+      { val: 2, emoji: '😕', label: 'Difusa' },
+      { val: 3, emoji: '🙂', label: 'Definida' },
+      { val: 4, emoji: '✨', label: 'Cristalina' },
+      { val: 5, emoji: '💎', label: 'Translúcida, los sabores brillan' },
+    ],
+  },
+  aftertaste: {
+    color: '#8B5E3C',
+    levels: [
+      { val: 1, emoji: '💨', label: 'Se desvanece de inmediato' },
+      { val: 2, emoji: '😐', label: 'Corto' },
+      { val: 3, emoji: '🙂', label: 'Medio, agradable' },
+      { val: 4, emoji: '😌', label: 'Largo y limpio' },
+      { val: 5, emoji: '🥹', label: 'Persistente, memorable' },
+    ],
+  },
+};
+
+function generateCataSummary() {
+  const extId = document.getElementById('cata-extraction')?.value;
+  const ext = extractions.find(e => e.id === extId);
+  const method = ext?.method || 'Cata';
+  const flavors = Array.from(selectedSCAFlavors);
+  const rating = parseFloat(document.getElementById('cup-rating')?.value || 0);
+  const sweetness = parseInt(document.getElementById('metric-sweetness')?.value || 3);
+  const acidity = parseInt(document.getElementById('metric-acidity')?.value || 3);
+  const clarity = parseInt(document.getElementById('metric-clarity')?.value || 3);
+  const aftertaste = parseInt(document.getElementById('metric-aftertaste')?.value || 3);
+  return {
+    method,
+    flavors,
+    rating,
+    metrics: { sweetness, acidity, clarity, aftertaste },
+    narrative: buildNarrative({ method, flavors, sweetness, acidity, clarity, aftertaste, rating })
+  };
+}
+
+function buildNarrative({ method, flavors, sweetness, acidity, clarity, aftertaste, rating }) {
+  if (rating === 0 && flavors.length === 0) return 'Completa la cata para ver el resumen.';
+
+  const parts = [];
+  parts.push(`<strong>${method}</strong>`);
+
+  if (flavors.length > 0) {
+    const flavorText = flavors.length <= 3
+      ? `con notas a ${flavors.slice(0, -1).join(', ')}${flavors.length > 1 ? ' y ' : ''}${flavors[flavors.length - 1]}`
+      : `con notas a ${flavors.slice(0, 2).join(', ')} y ${flavors.length - 2} matices más`;
+    parts.push(flavorText);
+  }
+
+  const bd = [];
+  if (sweetness >= 4) bd.push('dulzor marcado');
+  else if (sweetness <= 2) bd.push('dulzor sutil');
+  if (acidity >= 4) bd.push('acidez vibrante');
+  else if (acidity <= 2) bd.push('acidez suave');
+  if (clarity >= 4) bd.push('taza cristalina');
+  else if (clarity <= 2) bd.push('cuerpo turbio');
+  if (aftertaste >= 4) bd.push('postgusto persistente');
+  else if (aftertaste <= 2) bd.push('postgusto corto');
+  if (bd.length === 0 && sweetness === 3 && acidity === 3 && clarity === 3 && aftertaste === 3)
+    bd.push('perfil balanceado');
+
+  if (bd.length > 0) {
+    const bodyText = bd.length === 1
+      ? `de ${bd[0]}`
+      : `con ${bd.slice(0, -1).join(', ')} y ${bd[bd.length - 1]}`;
+    parts.push(bodyText);
+  }
+
+  let closing = '';
+  if      (rating >= 4.5) closing = '. Una taza memorable.';
+  else if (rating >= 4)   closing = '. Excelente extracción.';
+  else if (rating >= 3)   closing = '. Cata sólida.';
+  else if (rating >= 2)   closing = '. Hay margen para mejorar.';
+  else if (rating > 0)    closing = '. Vale la pena ajustar la receta.';
+
+  return parts.join(' ') + closing;
+}
+
+function renderSummaryCard() {
+  const card = document.getElementById('cata-summary-card');
+  if (!card) return;
+
+  const data = generateCataSummary();
+  const hasData = data.rating > 0 || data.flavors.length > 0;
+
+  if (!hasData) { card.classList.add('hidden'); return; }
+
+  // Animate in only when transitioning hidden→visible
+  const wasHidden = card.classList.contains('hidden');
+  card.classList.remove('hidden');
+  if (wasHidden) {
+    card.style.animation = 'none';
+    void card.offsetWidth;
+    card.style.animation = '';
+  }
+
+  const methodEl = document.getElementById('summary-method');
+  if (methodEl) methodEl.textContent = data.method;
+
+  const starsEl = document.getElementById('summary-stars');
+  const scoreEl = document.getElementById('summary-score');
+  if (starsEl && scoreEl) {
+    if (data.rating > 0) {
+      const full = Math.floor(data.rating);
+      const hasHalf = data.rating % 1 !== 0;
+      let stars = '★'.repeat(full);
+      if (hasHalf) stars += '⯬';
+      stars += '☆'.repeat(5 - Math.ceil(data.rating));
+      starsEl.textContent = stars;
+      scoreEl.textContent = data.rating.toFixed(1) + ' / 5';
+    } else {
+      starsEl.textContent = '☆☆☆☆☆';
+      scoreEl.textContent = 'Sin calificar';
+    }
+  }
+
+  const polygon = document.getElementById('summary-radar-polygon');
+  if (polygon) {
+    const m = data.metrics;
+    const pts = [
+      `60,${60 - (m.sweetness * 10)}`,
+      `${60 + (m.acidity * 10)},60`,
+      `60,${60 + (m.clarity * 10)}`,
+      `${60 - (m.aftertaste * 10)},60`
+    ];
+    polygon.setAttribute('points', pts.join(' '));
+  }
+
+  const narrativeEl = document.getElementById('summary-narrative');
+  if (narrativeEl) narrativeEl.innerHTML = data.narrative;
+
+  const flavorsEl = document.getElementById('summary-flavors');
+  if (flavorsEl) {
+    flavorsEl.innerHTML = '';
+    data.flavors.slice(0, 5).forEach(f => {
+      const tag = document.createElement('span');
+      tag.className = 'summary-flavor-tag';
+      tag.textContent = f;
+      flavorsEl.appendChild(tag);
+    });
+    if (data.flavors.length > 5) {
+      const more = document.createElement('span');
+      more.className = 'summary-flavor-tag';
+      more.style.opacity = '0.6';
+      more.textContent = `+${data.flavors.length - 5}`;
+      flavorsEl.appendChild(more);
+    }
+  }
+}
+
+function initInteractiveCata() {
+  const radarPolygon = document.getElementById('radar-polygon');
+  const radarVSweet = document.getElementById('radar-v-sweet');
+  const radarVAcid = document.getElementById('radar-v-acid');
+  const radarVClear = document.getElementById('radar-v-clear');
+  const radarVAfter = document.getElementById('radar-v-after');
+
+  const sensoryValues = { sweetness: 3, acidity: 3, clarity: 3, aftertaste: 3 };
+  let comparingTasting = null;
+
+  function populateCompareDropdown() {
+    const select = document.getElementById('compare-source-select');
+    if (!select) return;
+
+    const currentExtId = document.getElementById('cata-extraction').value;
+    const currentExt = extractions.find(e => e.id === currentExtId);
+    const currentMethod = currentExt?.method;
+
+    const candidates = tastings
+      .filter(t => t.metrics && typeof t.metrics.sweetness === 'number')
+      .map(t => {
+        const ext = extractions.find(e => e.id === t.extractionId);
+        return {
+          tasting: t,
+          extraction: ext,
+          sameMethod: ext && currentMethod && ext.method === currentMethod,
+          sameVarietal: t.varietal && currentExt && t.varietal === currentExt.varietal
+        };
+      })
+      .filter(c => c.extraction);
+
+    candidates.sort((a, b) => {
+      if (a.sameVarietal !== b.sameVarietal) return b.sameVarietal - a.sameVarietal;
+      if (a.sameMethod !== b.sameMethod) return b.sameMethod - a.sameMethod;
+      return new Date(b.extraction.date) - new Date(a.extraction.date);
+    });
+
+    select.innerHTML = '<option value="">Selecciona una cata...</option>';
+
+    if (candidates.length === 0) {
+      select.innerHTML = '<option value="">No hay catas previas para comparar</option>';
+      select.disabled = true;
+      return;
+    }
+    select.disabled = false;
+
+    candidates.slice(0, 15).forEach(c => {
+      const date = new Date(c.extraction.date);
+      const dateStr = date.toLocaleDateString('es', { day: 'numeric', month: 'short' });
+      const tag = c.sameVarietal ? '⭐ ' : (c.sameMethod ? '◆ ' : '');
+      const label = `${tag}${c.extraction.method} · ${c.tasting.varietal || 'Sin varietal'} · ${dateStr}`;
+
+      const opt = document.createElement('option');
+      opt.value = c.tasting.id;
+      opt.textContent = label;
+      select.appendChild(opt);
+    });
+  }
+
+  function updateCompareRadar() {
+    const elements = {
+      poly: document.getElementById('radar-compare-polygon'),
+      sweet: document.getElementById('radar-compare-v-sweet'),
+      acid: document.getElementById('radar-compare-v-acid'),
+      clear: document.getElementById('radar-compare-v-clear'),
+      after: document.getElementById('radar-compare-v-after')
+    };
+
+    if (!elements.poly) return;
+
+    const legend = document.getElementById('radar-legend');
+    const legendLabel = document.getElementById('legend-compare-label');
+
+    if (!comparingTasting || !comparingTasting.metrics) {
+      Object.values(elements).forEach(el => { if (el) el.style.display = 'none'; });
+      if (legend) legend.classList.add('hidden');
+      return;
+    }
+
+    const m = comparingTasting.metrics;
+    const pts = [
+      `140,${140 - (m.sweetness * 20)}`,
+      `${140 + (m.acidity * 20)},140`,
+      `140,${140 + (m.clarity * 20)}`,
+      `${140 - (m.aftertaste * 20)},140`
+    ];
+    elements.poly.setAttribute('points', pts.join(' '));
+    elements.poly.style.display = 'block';
+
+    elements.sweet.setAttribute('cy', 140 - (m.sweetness * 20));
+    elements.acid.setAttribute('cx', 140 + (m.acidity * 20));
+    elements.clear.setAttribute('cy', 140 + (m.clarity * 20));
+    elements.after.setAttribute('cx', 140 - (m.aftertaste * 20));
+
+    ['sweet', 'acid', 'clear', 'after'].forEach(k => {
+      elements[k].style.display = 'block';
+    });
+
+    if (legend && legendLabel) {
+      const ext = extractions.find(e => e.id === comparingTasting.extractionId);
+      const dateStr = ext ? new Date(ext.date).toLocaleDateString('es', { day: 'numeric', month: 'short' }) : '';
+      legendLabel.textContent = `Cata del ${dateStr}`;
+      legend.classList.remove('hidden');
+    }
+  }
+
+  function updateInsightMessage() {
+    const insightEl = document.getElementById('cata-insight');
+    if (!insightEl) return;
+
+    if (!comparingTasting || !comparingTasting.metrics) {
+      insightEl.classList.remove('visible');
+      return;
+    }
+
+    const cur = sensoryValues;
+    const prev = comparingTasting.metrics;
+
+    const diffs = {
+      sweetness: cur.sweetness - prev.sweetness,
+      acidity: cur.acidity - prev.acidity,
+      clarity: cur.clarity - prev.clarity,
+      aftertaste: cur.aftertaste - prev.aftertaste
+    };
+
+    const totalDiff = Math.abs(diffs.sweetness) + Math.abs(diffs.acidity) +
+                      Math.abs(diffs.clarity) + Math.abs(diffs.aftertaste);
+    const avgDiff = totalDiff / 4;
+
+    let message = '';
+
+    if (avgDiff < 0.5) {
+      message = `<span class="insight-icon">👌</span><strong>Cata muy consistente</strong> con la anterior. Estás replicando bien la experiencia.`;
+    } else if (avgDiff > 1.5) {
+      message = `<span class="insight-icon">🔍</span><strong>Diferencia notable</strong> con la cata anterior. ¿Cambió algo en la extracción o el grano?`;
+    } else {
+      const maxKey = Object.keys(diffs).reduce((a, b) =>
+        Math.abs(diffs[a]) > Math.abs(diffs[b]) ? a : b
+      );
+      const maxDiff = diffs[maxKey];
+      const direction = maxDiff > 0 ? 'subió' : 'bajó';
+      const labels = {
+        sweetness: 'el dulzor',
+        acidity: 'la acidez',
+        clarity: 'la claridad',
+        aftertaste: 'el postgusto'
+      };
+      message = `<span class="insight-icon">📊</span>Comparado con la anterior, <strong>${labels[maxKey]} ${direction}</strong> ${Math.abs(maxDiff)} ${Math.abs(maxDiff) === 1 ? 'punto' : 'puntos'}.`;
+    }
+
+    insightEl.innerHTML = message;
+    insightEl.classList.add('visible');
+  }
+
+  function updateRadar() {
+    if (!radarPolygon) return;
+    const pts = [
+      `140,${140 - (sensoryValues.sweetness * 20)}`,
+      `${140 + (sensoryValues.acidity * 20)},140`,
+      `140,${140 + (sensoryValues.clarity * 20)}`,
+      `${140 - (sensoryValues.aftertaste * 20)},140`
+    ];
+    radarPolygon.setAttribute('points', pts.join(' '));
+    
+    if(radarVSweet) radarVSweet.setAttribute('cy', 140 - (sensoryValues.sweetness * 20));
+    if(radarVAcid) radarVAcid.setAttribute('cx', 140 + (sensoryValues.acidity * 20));
+    if(radarVClear) radarVClear.setAttribute('cy', 140 + (sensoryValues.clarity * 20));
+    if(radarVAfter) radarVAfter.setAttribute('cx', 140 - (sensoryValues.aftertaste * 20));
+  }
+
+  const containers = document.querySelectorAll('.sensory-slider-container');
+  containers.forEach(container => {
+    const metric = container.getAttribute('data-metric');
+    const input = container.querySelector('.sensory-input');
+    const emojiEl = container.querySelector('.sensory-emoji');
+    const valEl = container.querySelector('.sensory-val');
+    const descEl = container.querySelector('.sensory-desc');
+    const map = SENSORY_MAP[metric];
+    
+    if (!input || !map) return;
+
+    input.addEventListener('input', () => {
+      const val = parseInt(input.value);
+      const level = map.levels.find(l => l.val === val);
+      if (!level) return;
+
+      valEl.textContent = val;
+      sensoryValues[metric] = val;
+      updateRadar();
+      updateInsightMessage();
+      renderSummaryCard();
+
+      const pct = ((val - 1) / 4) * 100;
+      input.style.background = `linear-gradient(to right, ${map.color} ${pct}%, #94A3B8 ${pct}%)`;
+
+      if (emojiEl.textContent !== level.emoji) {
+        emojiEl.style.opacity = '0';
+        emojiEl.classList.remove('bounce');
+        descEl.style.transform = 'translateY(-6px)';
+        descEl.style.opacity = '0';
+        
+        if (navigator.vibrate) navigator.vibrate(8);
+
+        setTimeout(() => {
+          emojiEl.textContent = level.emoji;
+          descEl.textContent = level.label;
+          emojiEl.style.opacity = '1';
+          void emojiEl.offsetWidth; // force reflow
+          emojiEl.classList.add('bounce');
+          descEl.style.transform = 'translateY(0)';
+          descEl.style.opacity = '1';
+        }, 120);
+      }
+    });
+    
+    emojiEl.addEventListener('animationend', () => {
+      emojiEl.classList.remove('bounce');
+    });
+
+    input.dispatchEvent(new Event('input'));
+  });
+
+  const btnToggle = document.getElementById('btn-toggle-compare');
+  const compareSelector = document.getElementById('compare-selector');
+  const compareSelect = document.getElementById('compare-source-select');
+  const btnCloseCompare = document.getElementById('btn-close-compare');
+
+  if (btnToggle) {
+    btnToggle.addEventListener('click', () => {
+      populateCompareDropdown();
+      btnToggle.classList.add('active');
+      compareSelector.classList.remove('hidden');
+      btnToggle.style.display = 'none';
+    });
+  }
+
+  if (compareSelect) {
+    compareSelect.addEventListener('change', (e) => {
+      const id = e.target.value;
+      if (!id) {
+        comparingTasting = null;
+      } else {
+        comparingTasting = tastings.find(t => t.id === id) || null;
+      }
+      updateCompareRadar();
+      updateInsightMessage();
+    });
+  }
+
+  if (btnCloseCompare) {
+    btnCloseCompare.addEventListener('click', () => {
+      comparingTasting = null;
+      compareSelect.value = '';
+      updateCompareRadar();
+      updateInsightMessage();
+      compareSelector.classList.add('hidden');
+      btnToggle.style.display = 'inline-flex';
+      btnToggle.classList.remove('active');
+    });
+  }
+
+  const cataExtractionEl = document.getElementById('cata-extraction');
+  if(cataExtractionEl) {
+    cataExtractionEl.addEventListener('change', () => {
+      comparingTasting = null;
+      if (btnToggle && compareSelector) {
+        compareSelector.classList.add('hidden');
+        btnToggle.style.display = 'inline-flex';
+        btnToggle.classList.remove('active');
+      }
+      if(compareSelect) compareSelect.value = '';
+      updateCompareRadar();
+      updateInsightMessage();
+    });
+  }
+
+  renderSummaryCard();
+}
+
+function initInteractiveCups() {
+  const container = document.getElementById('interactive-cup-rating');
+  const ratingInput = document.getElementById('cup-rating');
+  const display = document.getElementById('cup-rating-display');
+  if (!container || !ratingInput || !display) return;
+
+  container.innerHTML = '';
+  const cups = [];
+
+  for (let i = 1; i <= 5; i++) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'cup-wrapper';
+    wrapper.dataset.index = i;
+    
+    wrapper.innerHTML = `
+      <svg viewBox="0 0 40 40" class="cup-svg">
+        <defs>
+          <clipPath id="cup-clip-${i}">
+            <rect x="0" y="40" width="40" height="40" class="cup-fill-rect" style="transition: y 350ms var(--ease-state);"/>
+          </clipPath>
+          <linearGradient id="coffee-grad-${i}" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0%" stop-color="#3e2723"/>
+            <stop offset="100%" stop-color="#5d4037"/>
+          </linearGradient>
+        </defs>
+        <path class="cup-vapor" d="M15,12 Q12,8 15,4 M21,14 Q18,9 21,4 M27,12 Q24,8 27,4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity="0"/>
+        <path d="M10,15 L10,30 Q10,35 20,35 Q30,35 30,30 L30,15 Z" fill="none" stroke="currentColor" stroke-width="2"/>
+        <path d="M30,18 Q35,18 35,23 Q35,28 30,28" fill="none" stroke="currentColor" stroke-width="2"/>
+        <ellipse cx="20" cy="36" rx="14" ry="2" fill="none" stroke="currentColor" stroke-width="2"/>
+        <path d="M10,15 L10,30 Q10,35 20,35 Q30,35 30,30 L30,15 Z" fill="url(#coffee-grad-${i})" clip-path="url(#cup-clip-${i})"/>
+      </svg>
+    `;
+    container.appendChild(wrapper);
+    cups.push(wrapper);
+
+    wrapper.addEventListener('mousemove', (e) => {
+      const rect = wrapper.getBoundingClientRect();
+      const isHalf = e.clientX - rect.left < rect.width / 2;
+      const hoverVal = i - (isHalf ? 0.5 : 0);
+      updateCupsVisual(hoverVal, true);
+    });
+
+    wrapper.addEventListener('mouseleave', () => {
+      updateCupsVisual(parseFloat(ratingInput.value) || 0, false);
+    });
+
+    wrapper.addEventListener('click', (e) => {
+      const rect = wrapper.getBoundingClientRect();
+      const isHalf = e.clientX - rect.left < rect.width / 2;
+      const finalVal = i - (isHalf ? 0.5 : 0);
+      
+      ratingInput.value = finalVal;
+      display.textContent = finalVal.toFixed(1);
+      updateCupsVisual(finalVal, false);
+      if (typeof renderSummaryCard === 'function') renderSummaryCard();
+
+      if (finalVal === 5 && window.confetti) {
+        window.confetti({
+          particleCount: 30,
+          spread: 50,
+          origin: { y: 0.6 },
+          colors: ['#b87333', '#4a3022', '#eaddcf'],
+          shapes: ['circle']
+        });
+      }
+    });
+
+    wrapper.addEventListener('dblclick', () => {
+      const exact = prompt("Calificación exacta (ej. 4.25):", ratingInput.value);
+      if (exact !== null && !isNaN(exact)) {
+        let v = Math.min(5, Math.max(0, parseFloat(exact)));
+        ratingInput.value = v;
+        display.textContent = v.toFixed(2);
+        updateCupsVisual(v, false);
+        if (typeof renderSummaryCard === 'function') renderSummaryCard();
+      }
+    });
+  }
+
+  container.addEventListener('mouseleave', () => {
+    updateCupsVisual(parseFloat(ratingInput.value) || 0, false);
+  });
+
+  function updateCupsVisual(val, isHover) {
+    cups.forEach((wrapper, idx) => {
+      const cupIndex = idx + 1;
+      const rect = wrapper.querySelector('.cup-fill-rect');
+      
+      wrapper.classList.remove('hover', 'active');
+      
+      if (cupIndex <= Math.floor(val)) {
+        rect.setAttribute('y', '15');
+        wrapper.classList.add(isHover ? 'hover' : 'active');
+      } else if (cupIndex === Math.ceil(val) && val % 1 !== 0) {
+        const fraction = val % 1;
+        const yPos = 35 - (20 * fraction);
+        rect.setAttribute('y', yPos.toString());
+        wrapper.classList.add(isHover ? 'hover' : 'active');
+      } else {
+        rect.setAttribute('y', '40');
+      }
+    });
+  }
+}
+
+function initInteractiveBitacora() {
+  const methodSelect = document.getElementById('method');
+  const methodCards = document.querySelectorAll('.method-card');
+  if (methodSelect && methodCards.length) {
+    methodCards.forEach(card => {
+      card.addEventListener('click', () => {
+        methodCards.forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+        methodSelect.value = card.getAttribute('data-value');
+        methodSelect.dispatchEvent(new Event('change'));
+        updateInteractiveRanges();
+      });
+    });
+  }
+
+  const grindSize = document.getElementById('grind-size');
+  const grindValueLarge = document.getElementById('grind-value-large');
+  const grindStrip = document.getElementById('grind-visual-strip');
+  const labelPoetic = document.getElementById('grind-label-poetic');
+  const labelDesc = document.getElementById('grind-label-desc');
+
+  if (grindSize && grindStrip) {
+    grindStrip.innerHTML = '';
+    for (let i = 1; i <= 80; i += 8) {
+      const dot = document.createElement('div');
+      dot.className = 'grind-dot';
+      dot.dataset.val = i;
+      const inner = document.createElement('div');
+      inner.className = 'grind-dot-inner';
+      const size = Math.max(2, i / 6.5);
+      inner.style.width = size + 'px';
+      inner.style.height = size + 'px';
+      dot.appendChild(inner);
+      grindStrip.appendChild(dot);
+    }
+
+    grindSize.addEventListener('input', () => {
+      const val = parseInt(grindSize.value);
+      if (grindValueLarge) grindValueLarge.textContent = val;
+      
+      document.querySelectorAll('.grind-dot').forEach(d => {
+        d.classList.remove('active');
+        if (Math.abs(parseInt(d.dataset.val) - val) < 6) d.classList.add('active');
+      });
+
+      let poetic = "Polvo fino", desc = "Espresso, Turka";
+      if (val > 12 && val <= 25) { poetic = "Sal fina"; desc = "Moka, Aeropress corto"; }
+      else if (val > 25 && val <= 40) { poetic = "Azúcar de mesa"; desc = "V60, Aeropress"; }
+      else if (val > 40 && val <= 55) { poetic = "Sal gruesa"; desc = "Chemex, Kalita"; }
+      else if (val > 55 && val <= 70) { poetic = "Cuscús"; desc = "Prensa Francesa"; }
+      else if (val > 70) { poetic = "Pimienta gruesa"; desc = "Cold brew, immersión"; }
+
+      if (labelPoetic && labelPoetic.textContent !== poetic) {
+        labelPoetic.style.opacity = '0';
+        labelPoetic.style.transform = 'translateY(-10px)';
+        setTimeout(() => {
+          labelPoetic.textContent = poetic;
+          labelDesc.textContent = desc;
+          labelPoetic.style.opacity = '1';
+          labelPoetic.style.transform = 'translateY(0)';
+        }, 150);
+      }
+    });
+  }
+
+  const coffeeWeight = document.getElementById('coffee-weight');
+  const waterWeight = document.getElementById('water-weight');
+  const ratioInput = document.getElementById('ratio');
+  const ratioArm = document.getElementById('ratio-arm');
+  const ratioBase = document.getElementById('ratio-pivot-base');
+  const ratioLiveLabel = document.getElementById('ratio-live-label');
+
+  if (coffeeWeight && waterWeight && ratioInput) {
+    const calcRatio = () => {
+      const c = parseFloat(coffeeWeight.value) || 0;
+      const w = parseFloat(waterWeight.value) || 0;
+      if (c > 0 && w > 0) ratioInput.value = (w / c).toFixed(1);
+      updateBalanceSVG();
+    };
+    const calcWater = () => {
+      const c = parseFloat(coffeeWeight.value) || 0;
+      const r = parseFloat(ratioInput.value) || 0;
+      if (c > 0 && r > 0) waterWeight.value = Math.round(c * r);
+      updateBalanceSVG();
+    };
+
+    coffeeWeight.addEventListener('input', calcRatio);
+    waterWeight.addEventListener('input', calcRatio);
+    ratioInput.addEventListener('input', calcWater);
+  }
+
+  function updateBalanceSVG() {
+    if (!ratioArm || !ratioInput || !methodSelect) return;
+    const method = methodSelect.value;
+    const profile = METHOD_PROFILES[method] || METHOD_PROFILES["V60 02"];
+    const r = parseFloat(ratioInput.value) || 0;
+    if (ratioLiveLabel) ratioLiveLabel.textContent = `Ratio Objetivo: 1:${profile.ratioIdeal}`;
+    
+    if (!r) return;
+    
+    const diff = r - profile.ratioIdeal;
+    let tilt = Math.max(-15, Math.min(15, diff * 3));
+    ratioArm.style.transform = `rotate(${tilt}deg)`;
+
+    let colorClass = 'text-success';
+    if (r < profile.ratioMin || r > profile.ratioMax) colorClass = 'text-danger';
+    else if (Math.abs(diff) > 1) colorClass = 'text-warning';
+
+    ratioArm.setAttribute('class', colorClass);
+    ratioBase.setAttribute('class', colorClass);
+  }
+
+  const tempInput = document.getElementById('temperature');
+  const thermoLiquid = document.getElementById('thermo-liquid');
+  const thermoZone = document.getElementById('thermo-ideal-zone');
+  const thermoBulb = document.getElementById('thermo-bulb');
+
+  if (tempInput && thermoLiquid) {
+    tempInput.addEventListener('input', () => {
+      const t = parseFloat(tempInput.value) || 0;
+      const scaleY = Math.max(0, Math.min(1, (t - 60) / 40));
+      thermoLiquid.style.transform = `scaleY(${scaleY})`;
+    });
+
+    tempInput.addEventListener('change', () => {
+      if (!methodSelect) return;
+      const profile = METHOD_PROFILES[methodSelect.value];
+      if (!profile) return;
+      const t = parseFloat(tempInput.value) || 0;
+      if (profile.tempMin > 0 && (t < profile.tempMin || t > profile.tempMax)) {
+        thermoBulb.style.transform = 'translateX(2px)';
+        setTimeout(() => thermoBulb.style.transform = 'translateX(-2px)', 50);
+        setTimeout(() => thermoBulb.style.transform = 'translateX(2px)', 100);
+        setTimeout(() => thermoBulb.style.transform = 'translateX(0)', 150);
+        if (navigator.vibrate) navigator.vibrate(50);
+      }
+    });
+  }
+
+  function updateInteractiveRanges() {
+    if (!methodSelect) return;
+    const profile = METHOD_PROFILES[methodSelect.value];
+    if (!profile) return;
+
+    currentTargetTime = profile.targetTime;
+    
+    if (thermoZone) {
+      if (profile.tempMin > 0) {
+        const scaleMin = (profile.tempMin - 60) / 40;
+        const scaleMax = (profile.tempMax - 60) / 40;
+        thermoZone.setAttribute('y', 100 - (scaleMax * 80) - 20);
+        thermoZone.setAttribute('height', (scaleMax - scaleMin) * 80);
+        thermoZone.style.display = 'block';
+      } else {
+        thermoZone.style.display = 'none';
+      }
+    }
+    updateBalanceSVG();
+  }
+
+  if (methodCards.length > 0) methodCards[0].click();
+  if (grindSize) grindSize.dispatchEvent(new Event('input'));
+  if (tempInput) tempInput.dispatchEvent(new Event('input'));
+}
+
 // Timer Logic
 function setupTimer() {
+  const timerProgress = document.getElementById('timer-progress');
+  const timerOverProgress = document.getElementById('timer-over-progress');
+  const timerMarkers = document.getElementById('timer-markers');
+  const timerPulse = document.getElementById('timer-center-pulse');
+  const poursLabel = document.getElementById('timer-pours-label');
+
+  const baseDash = 816.81;
+  const overDash = 722.56;
+
+  function updateSVGTimer() {
+    if (!isTimerRunning) return;
+    
+    elapsedTime = Date.now() - startTime;
+    const sec = elapsedTime / 1000;
+    
+    if (timerProgress) {
+      const progress = Math.min(sec / currentTargetTime, 1);
+      timerProgress.style.strokeDashoffset = baseDash - (baseDash * progress);
+      
+      if (sec > currentTargetTime && timerOverProgress) {
+        timerProgress.style.stroke = 'var(--color-danger)';
+        timerOverProgress.style.opacity = '1';
+        const overProgress = Math.min((sec - currentTargetTime) / currentTargetTime, 1);
+        timerOverProgress.style.strokeDashoffset = overDash - (overDash * overProgress);
+      } else if (timerOverProgress) {
+        timerProgress.style.stroke = 'var(--color-accent)';
+        timerOverProgress.style.opacity = '0';
+      }
+    }
+
+    animFrameId = requestAnimationFrame(updateSVGTimer);
+  }
+
   btnTimerStart.addEventListener('click', () => {
     if (!isTimerRunning) {
       startTime = Date.now() - elapsedTime;
       timerInterval = setInterval(updateTimerUI, 100);
       isTimerRunning = true;
       btnTimerStart.classList.add('hidden');
-      btnTimerLap.classList.remove('hidden'); // Show lap when running
+      btnTimerLap.classList.remove('hidden');
       btnTimerStop.classList.remove('hidden');
       btnTimerReset.classList.add('hidden');
+      animFrameId = requestAnimationFrame(updateSVGTimer);
     }
   });
 
@@ -680,18 +1582,51 @@ function setupTimer() {
         waterTarget: '',
         note: `Vertido ${recordedStages.length + 1}`
       };
-      
       recordedStages.push(newStage);
       renderPourStages();
+      
+      if (poursLabel) poursLabel.textContent = `${recordedStages.length} vertidos`;
+      
+      if (timerPulse) {
+        timerPulse.style.transform = 'translate(-50%, -50%) scale(1.08)';
+        setTimeout(() => timerPulse.style.transform = 'translate(-50%, -50%) scale(1)', 150);
+      }
+
+      if (timerMarkers) {
+        const sec = currentMs / 1000;
+        const target = currentTargetTime;
+        const angle = (sec / target) * 360 - 90;
+        const r1 = 120, r2 = 140;
+        const rad = angle * Math.PI / 180;
+        const x1 = 140 + r1 * Math.cos(rad);
+        const y1 = 140 + r1 * Math.sin(rad);
+        const x2 = 140 + r2 * Math.cos(rad);
+        const y2 = 140 + r2 * Math.sin(rad);
+        
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("x1", x1);
+        line.setAttribute("y1", y1);
+        line.setAttribute("x2", x2);
+        line.setAttribute("y2", y2);
+        line.setAttribute("stroke", "var(--color-text-primary)");
+        line.setAttribute("stroke-width", "4");
+        line.setAttribute("stroke-linecap", "round");
+        line.style.opacity = "0";
+        line.style.transition = "opacity 150ms ease";
+        timerMarkers.appendChild(line);
+        
+        requestAnimationFrame(() => line.style.opacity = "1");
+      }
     }
   });
 
   btnTimerStop.addEventListener('click', () => {
     if (isTimerRunning) {
       clearInterval(timerInterval);
+      cancelAnimationFrame(animFrameId);
       isTimerRunning = false;
       btnTimerStart.classList.remove('hidden');
-      btnTimerLap.classList.add('hidden'); // Hide lap when stopped
+      btnTimerLap.classList.add('hidden');
       btnTimerStop.classList.add('hidden');
       btnTimerReset.classList.remove('hidden');
       btnTimerStart.textContent = 'Resume';
@@ -700,6 +1635,7 @@ function setupTimer() {
 
   btnTimerReset.addEventListener('click', () => {
     clearInterval(timerInterval);
+    cancelAnimationFrame(animFrameId);
     isTimerRunning = false;
     elapsedTime = 0;
     recordedStages = [];
@@ -708,6 +1644,19 @@ function setupTimer() {
       timerGuideDisplay.textContent = '';
       timerGuideDisplay.classList.add('hidden');
     }
+    
+    if (timerProgress) timerProgress.style.strokeDashoffset = baseDash;
+    if (timerOverProgress) timerOverProgress.style.opacity = '0';
+    if (timerMarkers) {
+      const lines = Array.from(timerMarkers.children).reverse();
+      lines.forEach((line, i) => {
+        setTimeout(() => {
+          line.style.opacity = '0';
+          setTimeout(() => line.remove(), 150);
+        }, i * 30);
+      });
+    }
+    if (poursLabel) poursLabel.textContent = '0 vertidos';
 
     renderPourStages();
     updateTimerUI();
@@ -731,7 +1680,10 @@ function updateTimerUI() {
   if (isTimerRunning) {
     elapsedTime = Date.now() - startTime;
   }
-  timerDisplay.textContent = formatTime(elapsedTime);
+  const t = formatTime(elapsedTime);
+  if (timerDisplay) {
+    timerDisplay.textContent = elapsedTime >= 600000 ? t.substring(0, 5) : t;
+  }
 }
 
 // Dedicated Replication Timer Logic
@@ -1313,11 +2265,11 @@ function setupForms() {
   formCata.addEventListener('submit', async (e) => {
     e.preventDefault();
     
-    const selectedFlavors = Array.from(document.querySelectorAll('.chip.selected')).map(chip => chip.getAttribute('data-value'));
+    const selectedFlavors = Array.from(selectedSCAFlavors);
     const rating = document.getElementById('cup-rating').value;
 
     if (rating === "0") {
-      alert("Por favor califica la taza (estrellas).");
+      alert("Por favor califica la taza (toca las tazas de arriba).");
       return;
     }
 
@@ -1351,6 +2303,8 @@ function setupForms() {
       aftertaste: parseInt(document.getElementById('metric-aftertaste').value || 3)
     };
 
+    const summaryData = generateCataSummary();
+
     const newTasting = {
       id: Date.now().toString(),
       extractionId: document.getElementById('cata-extraction').value,
@@ -1360,30 +2314,81 @@ function setupForms() {
       roastDate: roastDate,
       flavors: selectedFlavors,
       metrics: metricsData,
-      rating: parseInt(rating)
+      rating: parseFloat(rating),
+      summary: summaryData.narrative.replace(/<\/?strong>/g, '')
     };
 
     try {
       await db.collection("tastings").add(newTasting);
-      // Reset Form
-      formCata.reset();
-      document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
       
-      const starsReset = document.querySelectorAll('.rating-star');
-      starsReset.forEach(s => {
-        s.classList.remove('active');
-        s.innerHTML = `<svg viewBox="0 0 24 24"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor" fill-opacity="0.3"/></svg>`;
-      });
-      document.getElementById('cup-rating').value = 0;
+      // Success Animation
+      submitBtn.textContent = '¡Cata Guardada! ✓';
+      submitBtn.style.backgroundColor = 'var(--color-success)';
+      submitBtn.style.transform = 'scale(1.05)';
       
-      metrics.forEach(m => document.getElementById(`val-${m}`).textContent = '3');
-      alert('Cata guardada exitosamente.');
+      if (parseFloat(rating) >= 4.5 && typeof window.confetti === 'function') {
+        window.confetti({
+          particleCount: 50,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ['#b87333', '#4a3022', '#eaddcf']
+        });
+      }
+
+      setTimeout(() => {
+        formCata.reset();
+        selectedSCAFlavors.clear();
+        
+        // reset visuals
+        const wheelCenter = document.getElementById('sca-center-text');
+        if(wheelCenter) wheelCenter.textContent = 'Toca un sabor';
+        const scaChips = document.getElementById('sca-selected-chips');
+        if(scaChips) scaChips.innerHTML = '';
+        document.querySelectorAll('.flavor-arc.selected').forEach(el => {
+          el.classList.remove('selected');
+          el.style.opacity = '1';
+        });
+        
+        document.querySelectorAll('.extraction-card').forEach(c => c.classList.remove('selected'));
+        document.getElementById('interactive-cup-rating').innerHTML = '';
+        document.getElementById('cup-rating-display').textContent = '0.0';
+        initInteractiveCups();
+        const summaryCard = document.getElementById('cata-summary-card');
+        if (summaryCard) summaryCard.classList.add('hidden');
+
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Guardar Evaluación';
+        submitBtn.style.backgroundColor = '';
+        submitBtn.style.transform = '';
+
+        navItems.forEach(n => n.classList.remove('active'));
+        document.querySelector('.nav-item[data-view="recetario"]').classList.add('active');
+        views.forEach(v => v.classList.add('hidden'));
+        document.getElementById('view-recetario').classList.remove('hidden');
+        headerSubtitle.textContent = 'Tus Mejores Extracciones';
+      }, 1500);
+
     } catch (error) {
-      console.error("Error guardando cata:", error);
-      alert('Hubo un error al guardar la cata.');
-    } finally {
-      submitBtn.disabled = false;
-      submitBtn.textContent = 'Guardar Evaluación';
+      console.error("Error adding document: ", error);
+      submitBtn.textContent = 'Error al guardar';
+      submitBtn.style.backgroundColor = 'var(--color-danger)';
+      
+      // Shake animation using Web Animations API
+      if (submitBtn.animate) {
+        submitBtn.animate([
+          { transform: 'translateX(-4px)' },
+          { transform: 'translateX(4px)' },
+          { transform: 'translateX(-4px)' },
+          { transform: 'translateX(4px)' },
+          { transform: 'translateX(0)' }
+        ], { duration: 400 });
+      }
+
+      setTimeout(() => {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Guardar Evaluación';
+        submitBtn.style.backgroundColor = '';
+      }, 2000);
     }
   });
 
@@ -1465,22 +2470,62 @@ function setupForms() {
 }
 
 function updateExtractionDropdown() {
-  const select = document.getElementById('cata-extraction');
-  select.innerHTML = '<option value="" disabled selected>Selecciona extracción reciente</option>';
+  const container = document.getElementById('cata-extraction-cards');
+  const hiddenInput = document.getElementById('cata-extraction');
+  if(!container || !hiddenInput) return;
   
-  // Sort by newest first
+  container.innerHTML = '';
+  
   const sortedExtractions = [...extractions].sort((a,b) => b.id - a.id);
+  const untasted = sortedExtractions.filter(ext => !tastings.some(t => t.extractionId === ext.id)).slice(0, 5);
   
-  sortedExtractions.forEach(ext => {
-    // Check if already tasted
-    const isTasted = tastings.some(t => t.extractionId === ext.id);
-    if (!isTasted) {
-      const dateStr = new Date(ext.date).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
-      const option = document.createElement('option');
-      option.value = ext.id;
-      option.textContent = `${ext.method} - ${dateStr} (${ext.coffeeWeight}g / ${ext.waterWeight}ml)`;
-      select.appendChild(option);
-    }
+  if (untasted.length === 0) {
+    container.innerHTML = '<div style="color: var(--color-text-secondary); font-size: 0.875rem;">No hay extracciones recientes sin catar.</div>';
+    return;
+  }
+  
+  untasted.forEach(ext => {
+    const card = document.createElement('div');
+    card.className = 'extraction-card';
+    
+    // Relative time formatting
+    const msDiff = Date.now() - new Date(ext.date).getTime();
+    const hoursDiff = Math.floor(msDiff / (1000 * 60 * 60));
+    let timeStr = hoursDiff === 0 ? 'Hace poco' : `Hace ${hoursDiff}h`;
+    if (hoursDiff > 24) timeStr = `Hace ${Math.floor(hoursDiff/24)}d`;
+
+    card.innerHTML = `
+      <div class="extraction-card-title">${ext.method}</div>
+      <div class="extraction-card-date">${timeStr}</div>
+      <div class="extraction-card-stats">${ext.coffeeWeight}g : ${ext.waterWeight}ml</div>
+    `;
+    
+    card.addEventListener('click', () => {
+      // Deselect all
+      container.querySelectorAll('.extraction-card').forEach(c => c.classList.remove('selected'));
+      // Select this
+      card.classList.add('selected');
+      hiddenInput.value = ext.id;
+      
+      // Attempt Autocomplete from Pantry
+      if (ext.pantryId && pantry) {
+        const bean = pantry.find(p => p.firebaseId === ext.pantryId || p.id === ext.pantryId);
+        if (bean) {
+          const selectPantry = document.getElementById('cata-pantry-id');
+          if (selectPantry) selectPantry.value = bean.firebaseId || bean.id;
+          
+          document.getElementById('bean-origin').value = bean.origin || '';
+          document.getElementById('bean-varietal').value = bean.varietal || '';
+          document.getElementById('bean-process').value = bean.process || 'Lavado';
+          document.getElementById('roast-date').value = bean.roastDate || '';
+          
+          // Show small 'Auto' badge feedback (optional UI touch, maybe vibrate)
+          if (navigator.vibrate) navigator.vibrate(8);
+        }
+      }
+    });
+    
+    container.appendChild(card);
   });
 }
 
@@ -1548,34 +2593,648 @@ window.openEditModal = function(extractionId) {
   document.getElementById('edit-recipe-modal').classList.remove('hidden');
 };
 
-function renderSCAFlavors() {
-  const container = document.getElementById('sca-flavors-container');
-  container.innerHTML = '';
+let selectedSCAFlavors = new Set(); // Expose globally for form submission
 
-  scaData.forEach(group => {
-    const groupDiv = document.createElement('div');
-    groupDiv.className = 'flavor-category';
+function initInteractiveWheel() {
+  const svgG = document.getElementById('sca-wheel-g');
+  const chipsContainer = document.getElementById('sca-selected-chips');
+  const centerText = document.getElementById('sca-center-text');
+  const searchInput = document.getElementById('sca-search');
+  const wheelWrapper = document.getElementById('sca-wheel');
+  const btnZoomOut = document.getElementById('btn-sca-zoom-out');
+  if (!svgG) return;
+
+  const CENTER_X = 240, CENTER_Y = 240;
+  const RADIUS_L1 = [60, 139], RADIUS_L2 = [140, 199], RADIUS_L3 = [200, 230];
+  
+  let currentView = 'root';
+  let paths = [];
+
+  function processNode(nodeRaw, level, parentColor) {
+    let node = typeof nodeRaw === 'string' ? { name: nodeRaw, id: nodeRaw } : nodeRaw;
     
-    const title = document.createElement('div');
-    title.className = 'flavor-category-title';
-    title.textContent = group.category;
-    title.style.color = group.color; // Subtle hint of color for the title
-    groupDiv.appendChild(title);
+    let weight = 0;
+    const isLeaf = level === 3 || (!node.children || node.children.length === 0);
+    let processedChildren = [];
+    
+    if (isLeaf) {
+      weight = 1;
+    } else if (level === 1) {
+      processedChildren = (node.children || []).map(c => {
+        const p = processNode(c, 2, node.color || parentColor);
+        weight += p.weight;
+        return p;
+      });
+    } else if (level === 2) {
+      processedChildren = (node.children || []).map(c => {
+        const p = processNode(c, 3, node.color || parentColor);
+        weight += p.weight;
+        return p;
+      });
+    }
+    
+    return {
+      ...node,
+      children: processedChildren,
+      level,
+      isLeaf,
+      weight,
+      color: node.color || parentColor,
+      id: node.id || node.name
+    };
+  }
 
-    const chipsContainer = document.createElement('div');
-    chipsContainer.className = 'chips-container';
+  const rootNodes = flavorWheel.map(n => processNode(n, 1, n.color));
+  const totalWeight = rootNodes.reduce((s, n) => s + n.weight, 0);
 
-    group.flavors.forEach(flavor => {
+  function getPathData(cx, cy, r0, r1, startAngle, endAngle) {
+    const start = polarToCartesian(cx, cy, r1, startAngle);
+    const end = polarToCartesian(cx, cy, r1, endAngle);
+    const start0 = polarToCartesian(cx, cy, r0, startAngle);
+    const end0 = polarToCartesian(cx, cy, r0, endAngle);
+    const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+    return [
+      "M", start.x, start.y, 
+      "A", r1, r1, 0, largeArcFlag, 1, end.x, end.y,
+      "L", end0.x, end0.y, 
+      "A", r0, r0, 0, largeArcFlag, 0, start0.x, start0.y, 
+      "Z"
+    ].join(" ");
+  }
+
+  function polarToCartesian(cx, cy, r, angleInDegrees) {
+    const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
+    return { x: cx + (r * Math.cos(angleInRadians)), y: cy + (r * Math.sin(angleInRadians)) };
+  }
+
+  function createArc(node, startAngle, endAngle, radii, parentId) {
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    const id = node.id || node;
+    const d = getPathData(CENTER_X, CENTER_Y, radii[0], radii[1], startAngle, endAngle);
+    const midAngle = startAngle + (endAngle - startAngle) / 2;
+    
+    path.setAttribute('d', d);
+    path.setAttribute('fill', node.color);
+    path.setAttribute('stroke', getComputedStyle(document.body).getPropertyValue('--color-bg').trim() || '#1a1410');
+    path.setAttribute('stroke-width', '1');
+    path.setAttribute('class', 'flavor-arc');
+    path.setAttribute('data-id', id);
+    path.setAttribute('data-name', node.name || node);
+    path.setAttribute('data-level', node.level);
+    
+    const rText = radii[0] + (radii[1] - radii[0]) / 2;
+    const textPos = polarToCartesian(CENTER_X, CENTER_Y, rText, midAngle);
+
+    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    text.setAttribute('class', 'flavor-text');
+    text.setAttribute('x', textPos.x);
+    text.setAttribute('y', textPos.y);
+    text.setAttribute('text-anchor', 'middle');
+    text.setAttribute('dominant-baseline', 'middle');
+    text.setAttribute('fill', '#ffffff');
+    text.textContent = node.name || node;
+
+    // Rotar el texto para que sea legible
+    let rotation = midAngle - 90;
+    // Si está en la mitad inferior, voltearlo para que no quede de cabeza
+    if (rotation > 90 && rotation < 270) {
+      rotation += 180;
+    }
+    text.setAttribute('transform', `rotate(${rotation} ${textPos.x} ${textPos.y})`);
+
+    const fontSize = currentView === 'root' ? 18 : (node.level === 2 ? 14 : 11);
+    text.setAttribute('font-size', fontSize);
+
+    const arcAngle = endAngle - startAngle;
+    const name = node.name || node;
+    const maxChars = Math.max(3, Math.floor(arcAngle / 0.7));
+    if (name.length > maxChars) {
+      text.textContent = name.substring(0, Math.max(3, maxChars - 1)) + '…';
+    } else {
+      text.textContent = name;
+    }
+
+    const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
+    title.textContent = node.name || node;
+    path.appendChild(title);
+    
+    let touched = false;
+    path.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      touched = true;
+      handleWheelClick(node, path);
+      setTimeout(() => { touched = false; }, 350);
+    });
+    path.addEventListener('click', (e) => {
+      if (touched) return; // Evita doble disparo en móvil
+      handleWheelClick(node, path);
+    });
+
+    paths.push({path, text, node, startAngle, endAngle});
+    svgG.appendChild(path);
+    svgG.appendChild(text);
+  }
+
+  function updateBreadcrumb() {
+    const crumb = document.getElementById('sca-breadcrumb');
+    const current = document.getElementById('sca-crumb-current');
+    if (!crumb || !current) return;
+
+    if (currentView === 'root') {
+      crumb.setAttribute('data-view', 'root');
+      current.textContent = '';
+    } else {
+      crumb.setAttribute('data-view', 'detail');
+      const cat = rootNodes.find(n => n.id === currentView);
+      if (cat) {
+        current.textContent = cat.name;
+        current.style.color = cat.color;
+      }
+    }
+  }
+
+  function renderWheel() {
+    const wheelWrapper = document.getElementById('sca-wheel');
+    svgG.style.opacity = '0';
+
+    setTimeout(() => {
+      svgG.innerHTML = '';
+      paths = [];
+      let currentAngle = 0;
+
+      if (currentView === 'root') {
+        const ROOT_RADII = [70, 220];
+        const totalW = rootNodes.reduce((s, n) => s + n.weight, 0);
+        rootNodes.forEach(n1 => {
+          const angle = (n1.weight / totalW) * 360;
+          createArc(n1, currentAngle, currentAngle + angle, ROOT_RADII, null);
+          currentAngle += angle;
+        });
+      } else {
+        const cat = rootNodes.find(n => n.id === currentView);
+        if (!cat) { currentView = 'root'; renderWheel(); return; }
+
+        const SUB_RADII = [70, 145];
+        const LEAF_RADII = [146, 220];
+        const totalW = cat.children.reduce((s, n) => s + n.weight, 0);
+
+        cat.children.forEach(n2 => {
+          const angle = (n2.weight / totalW) * 360;
+          createArc(n2, currentAngle, currentAngle + angle, SUB_RADII, cat.id);
+
+          let leafAngle = currentAngle;
+          if (n2.children && n2.children.length > 0) {
+            n2.children.forEach(n3 => {
+              const a3 = (n3.weight / totalW) * 360;
+              createArc(n3, leafAngle, leafAngle + a3, LEAF_RADII, n2.id);
+              leafAngle += a3;
+            });
+          } else {
+            createArc(n2, currentAngle, currentAngle + angle, LEAF_RADII, n2.id);
+          }
+          currentAngle += angle;
+        });
+      }
+
+      if (wheelWrapper) {
+        wheelWrapper.classList.remove('sca-entering');
+        void wheelWrapper.offsetWidth;
+        wheelWrapper.classList.add('sca-entering');
+        setTimeout(() => wheelWrapper.classList.remove('sca-entering'), 500);
+      }
+
+      svgG.style.transition = 'opacity 200ms ease';
+      svgG.style.opacity = '1';
+
+      updateSelectionVisuals();
+      updateBreadcrumb();
+    }, 150);
+  }
+
+  function handleWheelClick(node, pathEl) {
+    if (currentView === 'root' && node.level === 1) {
+      currentView = node.id;
+      renderWheel();
+    } else if (node.isLeaf || node.level === 3) {
+      toggleFlavor(node.name || node, node.color);
+    } else if (node.level === 2 && (!node.children || node.children.length === 0)) {
+      toggleFlavor(node.name || node, node.color);
+    }
+  }
+
+  function toggleFlavor(name, color, forceSelect) {
+    const key = name;
+    const wasSelected = selectedSCAFlavors.has(key);
+
+    if (wasSelected && !forceSelect) {
+      selectedSCAFlavors.delete(key);
+    } else {
+      selectedSCAFlavors.add(key);
+
+      const target = paths.find(p => (p.node.name || p.node) === name);
+      if (target && target.path) {
+        target.path.classList.remove('just-selected');
+        void target.path.offsetWidth;
+        target.path.classList.add('just-selected');
+        setTimeout(() => target.path.classList.remove('just-selected'), 400);
+      }
+
+      if (navigator.vibrate) navigator.vibrate(8);
+    }
+    updateSelectionVisuals();
+  }
+
+  function updateSelectionVisuals() {
+    paths.forEach(p => {
+      if (p.node.isLeaf || (p.node.level === 2 && (!p.node.children || p.node.children.length === 0))) {
+        if (selectedSCAFlavors.has(p.node.name || p.node)) {
+          p.path.classList.add('selected');
+        } else {
+          p.path.classList.remove('selected');
+        }
+      }
+    });
+
+    const count = selectedSCAFlavors.size;
+    if (count === 0) {
+      centerText.textContent = currentView === 'root' ? "Toca una categoría" : "Toca un sabor";
+      centerText.setAttribute('font-size', '14');
+    } else if (count === 1) {
+      centerText.textContent = "1 sabor";
+      centerText.setAttribute('font-size', '16');
+    } else if (count <= 5) {
+      centerText.textContent = `${count} sabores`;
+      centerText.setAttribute('font-size', '16');
+    } else if (count <= 12) {
+      centerText.textContent = `${count} sabores ✨`;
+      centerText.setAttribute('font-size', '15');
+    } else {
+      centerText.textContent = `${count} sabores`;
+      centerText.setAttribute('font-size', '15');
+    }
+
+    const hintEl = document.getElementById('sca-hint');
+    if (hintEl) {
+      if (count > 12) {
+        hintEl.textContent = "Una cata clara suele tener 3-5 sabores principales. ¿Quieres refinar?";
+        hintEl.classList.add('visible');
+      } else {
+        hintEl.classList.remove('visible');
+      }
+    }
+
+    chipsContainer.innerHTML = '';
+    selectedSCAFlavors.forEach(flavor => {
+      const pData = paths.find(p => (p.node.name || p.node) === flavor);
+      const color = pData ? pData.node.color : '#3B82C9';
+      
       const chip = document.createElement('div');
-      chip.className = 'chip';
-      chip.textContent = flavor;
-      chip.setAttribute('data-value', flavor);
-      chip.setAttribute('data-color', group.color);
+      chip.className = 'flavor-chip';
+      chip.style.backgroundColor = `${color}22`;
+      chip.style.border = `1px solid ${color}`;
+      chip.style.color = color;
+      
+      chip.innerHTML = `<span>${flavor}</span><span class="remove">&times;</span>`;
+      chip.querySelector('.remove').addEventListener('click', () => {
+        chip.classList.add('removing');
+        setTimeout(() => toggleFlavor(flavor, color), 180);
+      });
       chipsContainer.appendChild(chip);
     });
 
-    groupDiv.appendChild(chipsContainer);
-    container.appendChild(groupDiv);
+    const actionsBar = document.getElementById('sca-actions-bar');
+    if (actionsBar) {
+      if (count >= 2) {
+        actionsBar.innerHTML = `
+          <button class="sca-clear-btn visible" id="sca-clear-all">
+            Limpiar selección
+          </button>
+        `;
+        document.getElementById('sca-clear-all').addEventListener('click', () => {
+          const allChips = chipsContainer.querySelectorAll('.flavor-chip');
+          allChips.forEach((chip, i) => {
+            setTimeout(() => chip.classList.add('removing'), i * 30);
+          });
+          setTimeout(() => {
+            selectedSCAFlavors.clear();
+            updateSelectionVisuals();
+          }, allChips.length * 30 + 200);
+        });
+      } else {
+        actionsBar.innerHTML = '';
+      }
+    }
+    if (typeof renderSummaryCard === 'function') renderSummaryCard();
+  }
+
+  const crumbRoot = document.querySelector('.sca-crumb-root');
+  if (crumbRoot) {
+    crumbRoot.addEventListener('click', () => {
+      if (currentView !== 'root') {
+        currentView = 'root';
+        renderWheel();
+      }
+    });
+  }
+
+  searchInput.addEventListener('input', (e) => {
+    const val = e.target.value.toLowerCase();
+    paths.forEach(p => {
+      if (p.node.isLeaf) {
+        const name = (p.node.name || p.node).toLowerCase();
+        if (val && !name.includes(val)) {
+          p.path.classList.add('not-matched');
+        } else {
+          p.path.classList.remove('not-matched');
+        }
+      }
+    });
+  });
+
+  renderWheel();
+}
+
+/* ============================================
+   FASE 4 — Recetario Globals
+   ============================================ */
+let currentSearchQuery = '';
+
+function matchesSearch(ext, query) {
+  if (!query) return true;
+  const t = tastings.find(t => t.extractionId === ext.id);
+  const haystack = [
+    ext.method, ext.notes, ext.summary,
+    t?.origin, t?.varietal, t?.process,
+    ...(t?.flavors || [])
+  ].filter(Boolean).join(' ').toLowerCase();
+  return haystack.includes(query);
+}
+
+function highlightMatch(text, query) {
+  if (!query || !text) return text || '';
+  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+  return String(text).replace(regex, '<span class="search-highlight">$1</span>');
+}
+
+function setupRecetarioSearch() {
+  const input = document.getElementById('recetario-search-input');
+  const clearBtn = document.getElementById('recetario-search-clear');
+  if (!input) return;
+
+  let debounceTimer;
+  input.addEventListener('input', (e) => {
+    const query = e.target.value.trim().toLowerCase();
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      currentSearchQuery = query;
+      if (clearBtn) clearBtn.classList.toggle('hidden', query.length === 0);
+      renderRecipes();
+    }, 200);
+  });
+
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      input.value = '';
+      currentSearchQuery = '';
+      clearBtn.classList.add('hidden');
+      renderRecipes();
+      input.focus();
+    });
+  }
+}
+
+function animateCount(element, target) {
+  if (!element) return;
+  const current = parseInt(element.textContent) || 0;
+  if (current === target) return;
+  element.classList.remove('counting');
+  void element.offsetWidth;
+  element.classList.add('counting');
+  const duration = 600;
+  const start = performance.now();
+  function update(now) {
+    const elapsed = now - start;
+    const progress = Math.min(elapsed / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    element.textContent = Math.floor(current + (target - current) * eased);
+    if (progress < 1) requestAnimationFrame(update);
+    else element.textContent = target;
+  }
+  requestAnimationFrame(update);
+}
+
+function renderRecetarioStats() {
+  const totalEl = document.getElementById('stat-total-extractions');
+  if (totalEl) animateCount(totalEl, extractions.length);
+
+  const methodCounts = {};
+  extractions.forEach(e => { if (e.method) methodCounts[e.method] = (methodCounts[e.method] || 0) + 1; });
+  const topMethod = Object.entries(methodCounts).sort((a, b) => b[1] - a[1])[0];
+  const topMethodEl = document.getElementById('stat-top-method');
+  const topMethodLabelEl = document.getElementById('stat-top-method-label');
+  if (topMethodEl) {
+    topMethodEl.textContent = topMethod ? topMethod[0] : '—';
+    if (topMethodLabelEl && topMethod && extractions.length > 0) {
+      const pct = Math.round((topMethod[1] / extractions.length) * 100);
+      topMethodLabelEl.textContent = `${pct}% de tus tazas`;
+    }
+  }
+
+  const originScores = {};
+  tastings.forEach(t => {
+    if (t.origin && t.rating >= 4) originScores[t.origin] = (originScores[t.origin] || 0) + 1;
+  });
+  const topOrigin = Object.entries(originScores).sort((a, b) => b[1] - a[1])[0];
+  const topOriginEl = document.getElementById('stat-top-origin');
+  if (topOriginEl) topOriginEl.textContent = topOrigin ? topOrigin[0] : '—';
+
+  const rated = tastings.filter(t => t.rating > 0);
+  const avgEl = document.getElementById('stat-avg-rating');
+  if (avgEl) {
+    if (rated.length > 0) {
+      const avg = rated.reduce((s, t) => s + t.rating, 0) / rated.length;
+      avgEl.textContent = avg.toFixed(1);
+    } else {
+      avgEl.textContent = '—';
+    }
+  }
+}
+
+function renderHeatmap() {
+  const grid = document.getElementById('heatmap-grid');
+  const streakEl = document.getElementById('heatmap-streak');
+  if (!grid) return;
+
+  const byDay = {};
+  extractions.forEach(e => {
+    const d = new Date(e.date);
+    if (isNaN(d.getTime())) return;
+    const key = d.toISOString().slice(0, 10);
+    byDay[key] = (byDay[key] || 0) + 1;
+  });
+
+  grid.innerHTML = '';
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const cells = [];
+
+  for (let i = 89; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    const count = byDay[key] || 0;
+    let level = count === 0 ? 0 : count === 1 ? 1 : count === 2 ? 2 : count === 3 ? 3 : 4;
+    const cell = document.createElement('div');
+    cell.className = 'heat-cell';
+    cell.setAttribute('data-level', level);
+    const dateStr = d.toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' });
+    cell.setAttribute('data-tooltip',
+      count === 0 ? `Sin extracciones · ${dateStr}` : `${count} extracci${count === 1 ? 'ón' : 'ones'} · ${dateStr}`);
+    grid.appendChild(cell);
+    cells.push({ date: key, count });
+  }
+
+  let currentStreak = 0;
+  for (let i = cells.length - 1; i >= 0; i--) {
+    if (cells[i].count > 0) currentStreak++; else break;
+  }
+  let maxStreak = 0, temp = 0;
+  cells.forEach(c => { if (c.count > 0) { temp++; maxStreak = Math.max(maxStreak, temp); } else temp = 0; });
+  const activeDays = cells.filter(c => c.count > 0).length;
+
+  if (streakEl) {
+    streakEl.innerHTML = `
+      <span><strong>${currentStreak}</strong> racha actual</span>
+      <span><strong>${maxStreak}</strong> racha máxima</span>
+      <span><strong>${activeDays}</strong> días activos · 90</span>
+    `;
+  }
+}
+
+function getEmptyState() {
+  if (currentSearchQuery) {
+    return `<div class="recetario-empty"><div class="empty-icon">🔍</div><div class="empty-title">Sin resultados para &ldquo;${currentSearchQuery}&rdquo;</div><div class="empty-subtitle">Intenta con otra palabra o limpia la búsqueda.</div></div>`;
+  }
+  if (currentRecetarioFilter === 'favorites') {
+    return `<div class="recetario-empty"><div class="empty-icon">🤍</div><div class="empty-title">No tienes favoritas todavía</div><div class="empty-subtitle">Marca recetas con corazón para encontrarlas aquí.</div></div>`;
+  }
+  return `<div class="recetario-empty"><div class="empty-icon">☕</div><div class="empty-title">Aún no hay recetas guardadas</div><div class="empty-subtitle">Empieza tu primera extracción en la Bitácora.</div></div>`;
+}
+
+function setupDragAndDrop() {
+  const list = document.getElementById('recipe-list');
+  if (!list) return;
+  const cards = list.querySelectorAll(':scope > div');
+  let draggedCard = null;
+
+  cards.forEach(card => {
+    const surface = card.querySelector('.surface');
+    if (!surface) return;
+    surface.classList.add('recipe-card-draggable');
+    if (!surface.querySelector('.drag-handle')) {
+      const handle = document.createElement('div');
+      handle.className = 'drag-handle';
+      handle.innerHTML = '⋮⋮';
+      handle.title = 'Arrastra para reordenar';
+      surface.appendChild(handle);
+    }
+    surface.draggable = true;
+    surface.addEventListener('dragstart', (e) => {
+      draggedCard = card;
+      surface.classList.add('recipe-card-dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    surface.addEventListener('dragend', () => {
+      surface.classList.remove('recipe-card-dragging');
+      list.querySelectorAll('.recipe-card-drag-over').forEach(el => el.classList.remove('recipe-card-drag-over'));
+      draggedCard = null;
+    });
+    surface.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      if (card !== draggedCard) surface.classList.add('recipe-card-drag-over');
+    });
+    surface.addEventListener('dragleave', () => surface.classList.remove('recipe-card-drag-over'));
+    surface.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      surface.classList.remove('recipe-card-drag-over');
+      if (!draggedCard || draggedCard === card) return;
+      const all = Array.from(list.children);
+      const fromIdx = all.indexOf(draggedCard);
+      const toIdx = all.indexOf(card);
+      if (fromIdx < toIdx) list.insertBefore(draggedCard, card.nextSibling);
+      else list.insertBefore(draggedCard, card);
+      await persistFavoriteOrder();
+    });
+  });
+}
+
+async function persistFavoriteOrder() {
+  const list = document.getElementById('recipe-list');
+  if (!list) return;
+  const surfaces = list.querySelectorAll(':scope > div .surface');
+  const updates = [];
+  surfaces.forEach((surface, newOrder) => {
+    const btn = surface.querySelector('[onclick*="toggleFavorite"]');
+    if (!btn) return;
+    const match = btn.getAttribute('onclick').match(/'([^']+)'/);
+    if (!match) return;
+    const ext = extractions.find(e => e.id === match[1]);
+    if (ext && ext.firebaseId) {
+      updates.push(db.collection('extractions').doc(ext.firebaseId).update({ favoriteOrder: newOrder }));
+      ext.favoriteOrder = newOrder;
+    }
+  });
+  await Promise.all(updates);
+  showToast('Orden de favoritas actualizado', 'success');
+}
+
+let qpEl = null;
+let qpHideTimer = null;
+
+function ensureQuickPreview() {
+  if (qpEl) return qpEl;
+  qpEl = document.createElement('div');
+  qpEl.className = 'recipe-quick-preview';
+  document.body.appendChild(qpEl);
+  return qpEl;
+}
+
+function setupQuickPreview() {
+  document.addEventListener('mouseover', (e) => {
+    const card = e.target.closest('#recipe-list > div .surface');
+    if (!card) return;
+    const btn = card.querySelector('[onclick*="toggleFavorite"]');
+    if (!btn) return;
+    const match = btn.getAttribute('onclick').match(/'([^']+)'/);
+    if (!match) return;
+    const ext = extractions.find(ex => ex.id === match[1]);
+    if (!ext) return;
+    const t = tastings.find(ta => ta.extractionId === ext.id);
+    const qp = ensureQuickPreview();
+
+    const noteText = ext.summary || ext.notes || 'Sin notas registradas.';
+    let html = `<p class="qp-narrative">&ldquo;${noteText}&rdquo;</p>`;
+    html += `<div class="qp-meta">`;
+    html += `<span>${ext.coffeeWeight}g · ${ext.waterWeight}ml</span>`;
+    html += `<span>1:${ext.ratio}</span>`;
+    if (t?.flavors?.length) html += `<span>${t.flavors.length} sabores</span>`;
+    html += `</div>`;
+    qp.innerHTML = html;
+
+    const rect = card.getBoundingClientRect();
+    let top = rect.top + window.scrollY - 10;
+    let left = rect.right + window.scrollX + 12;
+    if (left + 270 > window.innerWidth) left = rect.left + window.scrollX - 282;
+    qp.style.top = top + 'px';
+    qp.style.left = left + 'px';
+    clearTimeout(qpHideTimer);
+    qp.classList.add('visible');
+  });
+
+  document.addEventListener('mouseout', (e) => {
+    const card = e.target.closest('#recipe-list > div .surface');
+    if (!card) return;
+    qpHideTimer = setTimeout(() => { if (qpEl) qpEl.classList.remove('visible'); }, 100);
   });
 }
 
@@ -1588,6 +3247,11 @@ function renderRecipes() {
   // 1. App Top Tabs Filter
   if (currentRecetarioFilter === 'favorites') {
     filtered = filtered.filter(row => row.isFavorite === true);
+    filtered.sort((a, b) => {
+      const oA = typeof a.favoriteOrder === 'number' ? a.favoriteOrder : 999999;
+      const oB = typeof b.favoriteOrder === 'number' ? b.favoriteOrder : 999999;
+      return oA !== oB ? oA - oB : new Date(b.date).getTime() - new Date(a.date).getTime();
+    });
   } else if (currentRecetarioFilter === 'filtrados') {
     filtered = filtered.filter(row => row.method !== 'Bebida Preparada');
   } else if (currentRecetarioFilter === 'preparados') {
@@ -1595,16 +3259,19 @@ function renderRecipes() {
   }
 
   if (filtered.length === 0) {
-    if (currentRecetarioFilter === 'favorites') {
-      recipeList.innerHTML = `<div class="text-center" style="color: var(--color-text-muted); margin-top: 2rem;">No tienes recetas marcadas como favoritas.</div>`;
-    } else {
-      recipeList.innerHTML = `<div class="text-center" style="color: var(--color-text-muted); margin-top: 2rem;">Aún no hay recetas guardadas.</div>`;
-    }
+    recipeList.innerHTML = getEmptyState();
+    renderRecetarioStats();
+    renderHeatmap();
     return;
   }
 
   recipeList.innerHTML = '';
   let sortedExtractions = [...filtered];
+  
+  // Search filter
+  if (currentSearchQuery) {
+    sortedExtractions = sortedExtractions.filter(ext => matchesSearch(ext, currentSearchQuery));
+  }
   
   // Method Filter
   if (currentMethodFilter !== 'all') {
@@ -1630,7 +3297,7 @@ function renderRecipes() {
   }
 
   if (sortedExtractions.length === 0) {
-    recipeList.innerHTML = `<div class="text-center" style="color: var(--color-text-muted); margin-top: 2rem;">No hay recetas que coincidan con los filtros.</div>`;
+    recipeList.innerHTML = getEmptyState();
     return;
   }
 
@@ -1670,7 +3337,7 @@ function renderRecipes() {
           <div class="recipe-card-header">
             <div style="display: flex; flex-direction: column; gap: 4px;">
               <div style="display: flex; align-items: center; gap: 6px;">
-                <div class="recipe-method">${ext.method || 'Método Desconocido'}
+                <div class="recipe-method">${highlightMatch(ext.method || 'Método Desconocido', currentSearchQuery)}
                   ${ext.isFromNoni ? `<span style="font-size: 0.7rem; color: #a18cf5; background: rgba(161, 140, 245, 0.1); border: 1px solid rgba(161, 140, 245, 0.3); padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; margin-left: 6px;">✨ Creado por Noni</span>` : ''}
                 </div>
                 <button onclick="window.toggleFavorite('${ext.id}')" style="background:none; border:none; padding: 2px; cursor: pointer; display: flex; align-items: center; font-size: 1.15rem; line-height: 1; margin-left: 4px;">
@@ -1783,6 +3450,15 @@ function renderRecipes() {
       alert("Error UI: " + e.message);
     }
   });
+
+  renderRecetarioStats();
+  renderHeatmap();
+  if (currentRecetarioFilter === 'favorites') {
+    document.getElementById('recipe-list').classList.add('recetario-favorites-mode');
+    setupDragAndDrop();
+  } else {
+    document.getElementById('recipe-list').classList.remove('recetario-favorites-mode');
+  }
 }
 
 window.exportRecipeToImage = async function(id) {
@@ -1792,12 +3468,19 @@ window.exportRecipeToImage = async function(id) {
 
   // Populate Template
   document.getElementById('export-title').textContent = ext.method || 'Receta';
-  document.getElementById('export-origin').textContent = t ? `Origen: ${t.origin}` : `Origen: Origen 90`;
+  document.getElementById('export-origin').textContent = t ? `${t.origin}` : 'Origen 90';
   document.getElementById('export-method-badge').textContent = t && t.varietal ? t.varietal : (ext.method || 'Café');
   document.getElementById('export-coffee').textContent = `${ext.coffeeWeight}g`;
   document.getElementById('export-water').textContent = `${ext.waterWeight}g`;
   document.getElementById('export-grind').textContent = ext.grindSize;
-  document.getElementById('export-notes').textContent = ext.notes || (t && t.flavors && t.flavors.length > 0 ? t.flavors.join(', ') : 'Una extracción digna de compartir.');
+  document.getElementById('export-notes').textContent = ext.summary || ext.notes || (t && t.flavors && t.flavors.length > 0 ? t.flavors.join(', ') : 'Una extracción digna de compartir.');
+  const dateEl = document.getElementById('export-date');
+  if (dateEl) {
+    const d = new Date(ext.date);
+    dateEl.textContent = !isNaN(d.getTime())
+      ? d.toLocaleDateString('es', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()
+      : '—';
+  }
   
   const starsEl = document.getElementById('export-stars');
   if (t && t.rating) {
