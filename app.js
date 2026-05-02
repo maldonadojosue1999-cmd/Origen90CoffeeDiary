@@ -442,9 +442,25 @@ function setupInspirationFilters() {
       }
     });
   });
+
+  document.querySelectorAll('.noni-prompt-chip').forEach(chip => {
+    chip.addEventListener('mousemove', (e) => {
+      const rect = chip.getBoundingClientRect();
+      chip.style.setProperty('--mx', `${e.clientX - rect.left}px`);
+      chip.style.setProperty('--my', `${e.clientY - rect.top}px`);
+    });
+  });
 }
 
 async function renderInspiration() {
+  const dateEl = document.getElementById('daily-hero-date');
+  if (dateEl) {
+    const today = new Date();
+    dateEl.textContent = today.toLocaleDateString('es', {
+      day: 'numeric', month: 'short'
+    }).toUpperCase();
+  }
+
   const currentDateStr = new Date().toDateString();
   const cachedRecipeStr = localStorage.getItem('daily_noni_recipe');
   const cachedDate = localStorage.getItem('daily_noni_date');
@@ -474,6 +490,39 @@ async function renderInspiration() {
 
 
 
+  const btnRefresh = document.getElementById('btn-refresh-daily');
+  if (btnRefresh && !btnRefresh.dataset.wired) {
+    btnRefresh.dataset.wired = '1';
+    btnRefresh.addEventListener('click', async () => {
+      const apiKey = localStorage.getItem('gemini_api_key');
+      if (!apiKey) {
+        alert('Configura la API Key de Gemini en ajustes para regenerar.');
+        return;
+      }
+      btnRefresh.classList.add('spinning');
+      btnRefresh.disabled = true;
+
+      // Limpiar cache para forzar regeneración
+      localStorage.removeItem('daily_noni_recipe');
+      localStorage.removeItem('daily_noni_date');
+
+      try {
+        const titleEl = document.getElementById('daily-recipe-name');
+        const descEl = document.getElementById('daily-recipe-desc');
+        const reqContainer = document.getElementById('daily-recipe-ingredients');
+        const stepsContainer = document.getElementById('daily-recipe-steps');
+        await fetchAndSaveDailyNoni(
+          apiKey,
+          new Date().toDateString(),
+          titleEl, descEl, reqContainer, stepsContainer
+        );
+      } finally {
+        btnRefresh.classList.remove('spinning');
+        btnRefresh.disabled = false;
+      }
+    });
+  }
+
   // Trigger AI Suggester
   analyzeUserBeans();
 }
@@ -489,10 +538,18 @@ function renderFallbackDaily(titleEl, descEl, reqContainer, stepsContainer) {
 }
 
 async function fetchAndSaveDailyNoni(apiKey, currentDateStr, titleEl, descEl, reqContainer, stepsContainer) {
-  titleEl.textContent = "Noni está inventando algo...";
-  descEl.textContent = "Buscando inspiración en los granos ✨🐾";
-  reqContainer.innerHTML = '';
-  stepsContainer.innerHTML = '';
+  titleEl.innerHTML = '<span class="skeleton skeleton-title"></span>';
+  descEl.innerHTML = '<span class="skeleton skeleton-line"></span><span class="skeleton skeleton-line short"></span>';
+  reqContainer.innerHTML = `
+    <span class="skeleton skeleton-pill"></span>
+    <span class="skeleton skeleton-pill"></span>
+    <span class="skeleton skeleton-pill"></span>
+  `;
+  stepsContainer.innerHTML = `
+    <div class="skeleton skeleton-line"></div>
+    <div class="skeleton skeleton-line"></div>
+    <div class="skeleton skeleton-line short"></div>
+  `;
 
   const prompt = `Eres Noni. Inventa una receta aleatoria y exótica de café para la 'Receta del Día'. Puede ser cold brew, mocktail, latte, fermentación especial, o método filtrado. IMPORTANTE: En "method" si es una Bebida Preparada, usa exactamente "Bebida Preparada". Devuelve EXACTAMENTE este JSON y agrega las propiedades "recipeName" y "description" al mismo nivel: \`\`\`json\n{"recipeName": "Titúlo Creativo", "description": "Breve descripción seductora", "method": "Bebida Preparada", "coffeeWeight": 15, "waterWeight": 250, "grindSize": 45, "timeFormatted": "02:30.0", "notes": "...", "steps": ["1. Haz X"], "stages": [{ "type": "timer", "timeMs": 0, "timeFormatted": "00:00.0", "note": "Bloom", "waterTarget": 50 } ]}\n\`\`\``;
 
@@ -570,37 +627,57 @@ function renderDailyNoniUI(dailyRecipe, titleEl, descEl, reqContainer, stepsCont
 function analyzeUserBeans() {
   const suggesterBox = document.getElementById('ai-suggester-box');
   const suggesterContent = document.getElementById('ai-suggester-content');
+  if (!suggesterBox || !suggesterContent) return;
   suggesterBox.classList.add('hidden'); // Hide by default
 
-  if (!tastings || tastings.length === 0) return;
+  let targetVarietal = null;
+  let targetOrigin = null;
+  let isFromPantry = false;
 
-  // 1. Find the highest rated varietals
-  const highlyRated = tastings.filter(t => t.rating >= 4 && t.varietal);
+  // 1. Try to find a highly rated or recent tasting
+  if (tastings && tastings.length > 0) {
+    const highlyRated = tastings.filter(t => t.rating >= 4 && t.varietal);
+    const beansToAnalyze = highlyRated.length > 0 ? highlyRated : tastings.filter(t => t.varietal);
+    
+    if (beansToAnalyze.length > 0) {
+      beansToAnalyze.sort((a, b) => b.id - a.id);
+      const targetBean = beansToAnalyze[0];
+      targetVarietal = targetBean.varietal.split(' (')[0].trim();
+      targetOrigin = targetBean.origin;
+    }
+  }
+
+  // 2. If no valid tasting found, fallback to pantry
+  if (!targetVarietal && pantry && pantry.length > 0) {
+    // Sort pantry by newest
+    const sortedPantry = [...pantry].sort((a, b) => b.id - a.id);
+    const targetPantry = sortedPantry[0];
+    targetVarietal = "Otra"; // Fallback varietal
+    targetOrigin = targetPantry.origin || "tu Alacena";
+    isFromPantry = true;
+  }
+
+  // 3. If still nothing, show empty state message
+  if (!targetVarietal) {
+    suggesterContent.innerHTML = `<div style="font-size: 0.9rem; color: var(--color-text-secondary); padding: 10px 0;">Añade granos a tu Alacena o registra catas para recibir recomendaciones personalizadas basadas en tus gustos.</div>`;
+    suggesterBox.classList.remove('hidden');
+    return;
+  }
+
+  // 4. Match with intelligence database (use specific or fallback "Otra")
+  const recommendation = varietalRecommendations[targetVarietal] || varietalRecommendations["Otra"];
   
-  // If no highly rated ones, look at recent ones
-  const beansToAnalyze = highlyRated.length > 0 ? highlyRated : tastings.filter(t => t.varietal);
-
-  if (beansToAnalyze.length === 0) return;
-
-  // Sort by newest first
-  beansToAnalyze.sort((a, b) => b.id - a.id);
-
-  // Take the most recent highly-rated bean
-  const targetBean = beansToAnalyze[0];
-  
-  // Clean varietal string for matching (remove parens extra data)
-  let cleanVarietal = targetBean.varietal.split(' (')[0].trim();
-  
-  // Match with intelligence database
-  const recommendation = varietalRecommendations[cleanVarietal];
-
   if (recommendation) {
     const recipe = masterRecipes.find(r => r.id === recommendation.recipe);
     if (recipe) {
       // Build UI
+      let contextMsg = isFromPantry 
+        ? `Hemos notado que has añadido un café de <strong>${targetOrigin}</strong> a tu Alacena.`
+        : `Hemos notado que has estado catando <strong>${targetVarietal}</strong> (Origen: ${targetOrigin}).`;
+
       suggesterContent.innerHTML = `
         <div style="font-size: 0.9rem; color: var(--color-text-primary); margin-bottom: 12px; line-height: 1.4;">
-          Hemos notado que has estado catando <strong>${cleanVarietal}</strong> (Origen: ${targetBean.origin}). 
+          ${contextMsg} 
           <span style="color: var(--color-text-muted);">${recommendation.reason}</span>
         </div>
         
@@ -623,10 +700,6 @@ function analyzeUserBeans() {
       `;
       suggesterBox.classList.remove('hidden');
     }
-  } else {
-    // If no specific recommendation but tastings exist, just show the box to allow catalog access
-    suggesterContent.innerHTML = `<div style="font-size: 0.9rem; color: var(--color-text-secondary); padding: 10px 0;">Sigue catando diferentes granos para recibir recomendaciones personalizadas. Mientras tanto, explora el Catálogo de Masterclass.</div>`;
-    suggesterBox.classList.remove('hidden');
   }
 }
 
@@ -3065,6 +3138,43 @@ function renderHeatmap() {
   const streakEl = document.getElementById('heatmap-streak');
   if (!grid) return;
 
+  // Ensure global tooltip exists (created once, reused across re-renders)
+  let heatmapTooltip = document.getElementById('heatmap-tooltip-global');
+  if (!heatmapTooltip) {
+    heatmapTooltip = document.createElement('div');
+    heatmapTooltip.id = 'heatmap-tooltip-global';
+    heatmapTooltip.className = 'heatmap-tooltip';
+    document.body.appendChild(heatmapTooltip);
+  }
+
+  function positionTooltip(targetCell) {
+    const rect = targetCell.getBoundingClientRect();
+    // getBoundingClientRect of tooltip requires it to be briefly visible
+    heatmapTooltip.style.visibility = 'hidden';
+    heatmapTooltip.style.opacity = '1';
+    const tipRect = heatmapTooltip.getBoundingClientRect();
+    heatmapTooltip.style.visibility = '';
+    heatmapTooltip.style.opacity = '';
+
+    let top = rect.top - tipRect.height - 8;
+    let left = rect.left + (rect.width / 2) - (tipRect.width / 2);
+
+    if (top < 8) {
+      top = rect.bottom + 8;
+      heatmapTooltip.classList.add('below');
+    } else {
+      heatmapTooltip.classList.remove('below');
+    }
+
+    if (left < 8) left = 8;
+    if (left + tipRect.width > window.innerWidth - 8) {
+      left = window.innerWidth - tipRect.width - 8;
+    }
+
+    heatmapTooltip.style.top = top + 'px';
+    heatmapTooltip.style.left = left + 'px';
+  }
+
   const byDay = {};
   extractions.forEach(e => {
     const d = new Date(e.date);
@@ -3087,12 +3197,31 @@ function renderHeatmap() {
     const cell = document.createElement('div');
     cell.className = 'heat-cell';
     cell.setAttribute('data-level', level);
+
     const dateStr = d.toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' });
-    cell.setAttribute('data-tooltip',
-      count === 0 ? `Sin extracciones · ${dateStr}` : `${count} extracci${count === 1 ? 'ón' : 'ones'} · ${dateStr}`);
+    const tooltipText = count === 0
+      ? `Sin extracciones \u00b7 ${dateStr}`
+      : `${count} extracci${count === 1 ? '\u00f3n' : 'ones'} \u00b7 ${dateStr}`;
+
+    cell.addEventListener('mouseenter', () => {
+      heatmapTooltip.textContent = tooltipText;
+      heatmapTooltip.classList.add('visible');
+      positionTooltip(cell);
+    });
+    cell.addEventListener('mouseleave', () => {
+      heatmapTooltip.classList.remove('visible');
+    });
+    cell.addEventListener('touchstart', () => {
+      heatmapTooltip.textContent = tooltipText;
+      heatmapTooltip.classList.add('visible');
+      positionTooltip(cell);
+      setTimeout(() => heatmapTooltip.classList.remove('visible'), 1500);
+    }, { passive: true });
+
     grid.appendChild(cell);
     cells.push({ date: key, count });
   }
+
 
   let currentStreak = 0;
   for (let i = cells.length - 1; i >= 0; i--) {
@@ -3908,60 +4037,609 @@ function setupPantryForm() {
       btn.disabled = false;
     }
   });
+
+  // Origin flag live preview
+  const originInput = document.getElementById('pantry-origin');
+  const originFlag  = document.getElementById('pantry-origin-flag');
+  if (originInput && originFlag) {
+    originInput.addEventListener('input', () => {
+      const flag = countryToFlag(originInput.value);
+      if (flag && flag !== '☕') {
+        originFlag.textContent = flag;
+        originFlag.classList.add('visible');
+      } else {
+        originFlag.classList.remove('visible');
+      }
+    });
+  }
 }
+
+/* ============================================
+   FASE 5 — Alacena Visual Helpers
+   ============================================ */
+
+function computeFreshness(roastDateStr) {
+  if (!roastDateStr) return { level: 'unknown', label: 'Tueste sin fecha', days: null };
+  const roast = new Date(roastDateStr);
+  if (isNaN(roast.getTime())) return { level: 'unknown', label: 'Fecha inválida', days: null };
+  const days = Math.floor((Date.now() - roast.getTime()) / (1000 * 60 * 60 * 24));
+  if (days < 5)  return { level: 'fresh', label: `Reposando · ${days}d`, days };
+  if (days <= 14) return { level: 'fresh', label: `En su punto · ${days}d`, days };
+  if (days <= 30) return { level: 'ok',    label: `Aún bueno · ${days}d`, days };
+  if (days <= 60) return { level: 'aging', label: `Decayendo · ${days}d`, days };
+  return { level: 'aging', label: `Viejo · ${days}d`, days };
+}
+
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+const COUNTRY_FLAGS = {
+  'guatemala': '🇬🇹', 'colombia': '🇨🇴', 'etiopía': '🇪🇹', 'etiopia': '🇪🇹',
+  'kenia': '🇰🇪', 'kenya': '🇰🇪', 'brasil': '🇧🇷', 'brazil': '🇧🇷',
+  'costa rica': '🇨🇷', 'panamá': '🇵🇦', 'panama': '🇵🇦',
+  'honduras': '🇭🇳', 'el salvador': '🇸🇻', 'nicaragua': '🇳🇮',
+  'méxico': '🇲🇽', 'mexico': '🇲🇽', 'perú': '🇵🇪', 'peru': '🇵🇪',
+  'bolivia': '🇧🇴', 'ecuador': '🇪🇨', 'rwanda': '🇷🇼', 'ruanda': '🇷🇼',
+  'burundi': '🇧🇮', 'tanzania': '🇹🇿', 'uganda': '🇺🇬',
+  'yemen': '🇾🇪', 'indonesia': '🇮🇩', 'india': '🇮🇳',
+  'vietnam': '🇻🇳', 'jamaica': '🇯🇲', 'república dominicana': '🇩🇴',
+  'rep. dominicana': '🇩🇴', 'cuba': '🇨🇺', 'puerto rico': '🇵🇷',
+  'haití': '🇭🇹', 'haiti': '🇭🇹', 'china': '🇨🇳', 'tailandia': '🇹🇭',
+  'filipinas': '🇵🇭', 'papúa nueva guinea': '🇵🇬', 'papua nueva guinea': '🇵🇬',
+  'venezuela': '🇻🇪'
+};
+
+function countryToFlag(originStr) {
+  if (!originStr) return '☕';
+  const country = resolveOriginToCountry(originStr);
+  if (!country) return '☕';
+  // Normalizar el nombre del país a la clave del diccionario de banderas
+  const flagKey = country.toLowerCase();
+  return COUNTRY_FLAGS[flagKey] || '☕';
+}
+
+function renderAlacenaStats() {
+  const active = pantry.filter(p => p.currentWeight > 0);
+  const totalGrams = active.reduce((s, p) => s + (parseFloat(p.currentWeight) || 0), 0);
+  const origins = new Set(active.map(p => p.origin).filter(Boolean));
+  const elActive  = document.getElementById('alacena-stat-active');
+  const elGrams   = document.getElementById('alacena-stat-grams');
+  const elOrigins = document.getElementById('alacena-stat-origins');
+  if (elActive)  animateCount(elActive,  active.length);
+  if (elGrams)   animateCount(elGrams,   Math.round(totalGrams));
+  if (elOrigins) animateCount(elOrigins, origins.size);
+}
+
+function setupPantryTilt(container) {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (window.matchMedia('(hover: none)').matches) return;
+  const cards = container.querySelectorAll('.pantry-card.tiltable');
+  cards.forEach(card => {
+    card.addEventListener('mousemove', (e) => {
+      const rect = card.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const rotY = ((x - rect.width / 2) / (rect.width / 2)) * 5;
+      const rotX = -((y - rect.height / 2) / (rect.height / 2)) * 5;
+      card.style.setProperty('--tilt-x', `${rotX.toFixed(2)}deg`);
+      card.style.setProperty('--tilt-y', `${rotY.toFixed(2)}deg`);
+      card.style.setProperty('--mouse-x', `${x}px`);
+      card.style.setProperty('--mouse-y', `${y}px`);
+    });
+    card.addEventListener('mouseleave', () => {
+      card.style.setProperty('--tilt-x', '0deg');
+      card.style.setProperty('--tilt-y', '0deg');
+    });
+  });
+}
+
+const COFFEE_COUNTRIES = {
+  'México': {
+    name: 'México',
+    d: 'M 349,319 L 358,328 L 383,326 L 399,326 L 408,323 L 419,333 L 432,334 L 439,334 L 450,347 L 459,356 L 460,357 L 461,367 L 458,378 L 469,396 L 476,400 L 488,397 L 496,401 L 494,406 L 495,411 L 488,419 L 488,419 L 472,411 L 447,407 L 419,396 L 406,382 L 389,371 L 375,358 L 364,346 L 356,333 L 349,319 Z'
+  },
+  'Guatemala': {
+    name: 'Guatemala',
+    d: 'M 488,419 L 489,418 L 492,414 L 493,411 L 497,411 L 500,411 L 504,412 L 506,414 L 508,413 L 509,415 L 506,419 L 503,422 L 500,424 L 494,423 L 489,421 L 488,419 Z'
+  },
+  'Honduras': {
+    name: 'Honduras',
+    d: 'M 504,417 L 508,413 L 514,412 L 522,411 L 528,412 L 538,417 L 536,418 L 531,419 L 525,424 L 518,426 L 514,428 L 512,426 L 506,421 L 504,417 Z'
+  },
+  'El Salvador': {
+    name: 'El Salvador',
+    d: 'M 500,422 L 503,420 L 508,423 L 513,426 L 512,427 L 506,427 L 502,426 L 500,424 L 500,422 Z'
+  },
+  'Nicaragua': {
+    name: 'Nicaragua',
+    d: 'M 514,428 L 518,426 L 524,424 L 531,419 L 536,418 L 538,422 L 536,431 L 535,439 L 524,439 L 519,434 L 514,430 L 514,428 Z'
+  },
+  'Costa Rica': {
+    name: 'Costa Rica',
+    d: 'M 524,439 L 528,439 L 533,440 L 539,442 L 541,447 L 536,453 L 531,447 L 525,444 L 524,442 L 524,439 Z'
+  },
+  'Panamá': {
+    name: 'Panamá',
+    d: 'M 539,447 L 542,447 L 547,451 L 553,450 L 558,449 L 567,449 L 570,453 L 571,456 L 567,458 L 558,460 L 550,458 L 544,454 L 539,450 L 539,447 Z'
+  },
+  'Cuba': {
+    name: 'Cuba',
+    d: 'M 528,381 L 533,377 L 542,371 L 547,371 L 553,373 L 569,373 L 581,383 L 586,384 L 588,388 L 572,389 L 564,389 L 553,379 L 542,379 L 528,381 Z'
+  },
+  'Jamaica': {
+    name: 'Jamaica',
+    d: 'M 564,397 L 572,397 L 577,400 L 576,402 L 569,402 L 564,400 L 564,397 Z'
+  },
+  'Haití': {
+    name: 'Haití',
+    d: 'M 587,389 L 594,389 L 600,391 L 602,394 L 602,398 L 597,399 L 592,399 L 587,398 L 587,389 Z'
+  },
+  'República Dominicana': {
+    name: 'República Dominicana',
+    d: 'M 602,389 L 608,389 L 614,391 L 620,397 L 618,399 L 606,398 L 602,394 L 602,389 Z'
+  },
+  'Puerto Rico': {
+    name: 'Puerto Rico',
+    d: 'M 626,397 L 633,397 L 636,398 L 636,400 L 627,400 L 626,397 Z'
+  },
+  'Colombia': {
+    name: 'Colombia',
+    d: 'M 569,452 L 572,456 L 578,456 L 581,447 L 589,438 L 597,433 L 603,431 L 607,432 L 611,435 L 613,436 L 613,467 L 625,467 L 625,490 L 614,497 L 611,511 L 608,522 L 600,511 L 589,506 L 583,497 L 569,497 L 564,494 L 563,486 L 569,478 L 572,467 L 569,452 Z'
+  },
+  'Venezuela': {
+    name: 'Venezuela',
+    d: 'M 597,433 L 606,434 L 614,436 L 622,436 L 631,441 L 642,442 L 656,441 L 663,447 L 667,456 L 658,467 L 647,478 L 644,492 L 633,494 L 625,490 L 625,467 L 613,467 L 613,436 L 611,435 L 597,433 Z'
+  },
+  'Ecuador': {
+    name: 'Ecuador',
+    d: 'M 556,494 L 561,494 L 564,492 L 569,497 L 581,500 L 583,508 L 575,514 L 564,519 L 558,514 L 556,508 L 553,500 L 556,494 Z'
+  },
+  'Perú': {
+    name: 'Perú',
+    d: 'M 556,517 L 561,519 L 564,519 L 575,514 L 589,506 L 600,511 L 608,522 L 606,539 L 614,550 L 617,561 L 614,575 L 617,586 L 614,597 L 603,597 L 594,592 L 583,589 L 572,575 L 561,544 L 553,533 L 550,528 L 550,522 L 556,517 Z'
+  },
+  'Bolivia': {
+    name: 'Bolivia',
+    d: 'M 614,556 L 625,561 L 636,556 L 650,558 L 664,575 L 675,592 L 678,608 L 669,617 L 656,622 L 636,622 L 628,622 L 619,614 L 614,603 L 617,589 L 614,575 L 617,561 L 614,556 Z'
+  },
+  'Brasil': {
+    name: 'Brasil',
+    d: 'M 597,556 L 606,539 L 608,522 L 614,506 L 628,497 L 639,494 L 647,489 L 661,475 L 667,472 L 678,475 L 689,489 L 703,489 L 714,478 L 722,494 L 733,506 L 753,514 L 769,516 L 786,521 L 803,531 L 806,544 L 794,558 L 783,575 L 781,594 L 775,614 L 769,625 L 753,628 L 733,642 L 725,658 L 711,678 L 697,686 L 686,669 L 681,658 L 689,653 L 694,642 L 697,631 L 700,614 L 675,608 L 678,592 L 664,575 L 650,558 L 636,556 L 625,561 L 614,556 L 597,556 Z'
+  },
+  'Etiopía': {
+    name: 'Etiopía',
+    d: 'M 1183,422 L 1194,406 L 1211,403 L 1231,411 L 1242,433 L 1239,442 L 1253,442 L 1264,456 L 1250,475 L 1228,478 L 1211,478 L 1197,475 L 1192,472 L 1186,458 L 1186,439 L 1183,422 Z'
+  },
+  'Kenia': {
+    name: 'Kenia',
+    d: 'M 1188,474 L 1197,472 L 1211,478 L 1228,478 L 1231,489 L 1231,508 L 1222,517 L 1217,525 L 1208,517 L 1192,506 L 1189,494 L 1188,474 Z'
+  },
+  'Uganda': {
+    name: 'Uganda',
+    d: 'M 1164,478 L 1172,481 L 1186,481 L 1192,494 L 1186,506 L 1175,506 L 1164,494 L 1164,478 Z'
+  },
+  'Rwanda': {
+    name: 'Rwanda',
+    d: 'M 1161,506 L 1167,506 L 1171,506 L 1171,514 L 1164,516 L 1161,514 L 1161,506 Z'
+  },
+  'Burundi': {
+    name: 'Burundi',
+    d: 'M 1161,514 L 1169,514 L 1171,519 L 1169,525 L 1161,525 L 1161,514 Z'
+  },
+  'Tanzania': {
+    name: 'Tanzania',
+    d: 'M 1164,506 L 1183,506 L 1194,511 L 1208,517 L 1214,528 L 1219,536 L 1222,544 L 1219,558 L 1208,564 L 1192,564 L 1178,553 L 1169,544 L 1161,533 L 1161,525 L 1161,514 L 1164,506 Z'
+  },
+  'Yemen': {
+    name: 'Yemen',
+    d: 'M 1239,406 L 1247,403 L 1258,406 L 1272,406 L 1289,394 L 1294,408 L 1289,422 L 1272,428 L 1250,431 L 1242,428 L 1239,419 L 1239,406 Z'
+  },
+  'India': {
+    name: 'India',
+    d: 'M 1378,369 L 1386,353 L 1397,342 L 1411,322 L 1433,314 L 1442,319 L 1447,331 L 1467,347 L 1489,350 L 1497,356 L 1511,347 L 1514,358 L 1494,378 L 1483,381 L 1469,392 L 1453,408 L 1444,428 L 1436,447 L 1431,456 L 1422,453 L 1411,433 L 1403,408 L 1403,389 L 1389,386 L 1381,381 L 1378,369 Z'
+  },
+  'China': {
+    name: 'China',
+    d: 'M 1539,344 L 1528,339 L 1547,361 L 1561,378 L 1583,378 L 1600,383 L 1617,381 L 1628,375 L 1650,369 L 1672,361 L 1678,333 L 1675,300 L 1683,275 L 1708,269 L 1722,264 L 1744,236 L 1744,206 L 1708,206 L 1672,203 L 1658,225 L 1611,236 L 1597,228 L 1542,214 L 1528,228 L 1486,228 L 1472,239 L 1458,239 L 1444,250 L 1425,272 L 1414,286 L 1411,306 L 1436,319 L 1444,331 L 1467,347 L 1489,350 L 1511,347 L 1539,344 Z'
+  },
+  'Vietnam': {
+    name: 'Vietnam',
+    d: 'M 1569,381 L 1575,375 L 1583,375 L 1592,381 L 1600,394 L 1608,428 L 1606,442 L 1589,450 L 1583,447 L 1581,439 L 1583,422 L 1592,408 L 1597,406 L 1594,397 L 1583,394 L 1575,392 L 1569,381 Z'
+  },
+  'Tailandia': {
+    name: 'Tailandia',
+    d: 'M 1542,400 L 1550,386 L 1558,386 L 1564,392 L 1569,400 L 1575,403 L 1586,419 L 1581,436 L 1569,431 L 1561,431 L 1561,453 L 1567,464 L 1561,469 L 1556,464 L 1550,458 L 1547,453 L 1544,439 L 1547,419 L 1542,411 L 1542,400 Z'
+  },
+  'Filipinas': {
+    name: 'Filipinas',
+    d: 'M 1669,397 L 1678,403 L 1686,425 L 1692,436 L 1694,447 L 1703,458 L 1703,469 L 1692,467 L 1681,461 L 1675,436 L 1667,425 L 1664,408 L 1669,397 Z'
+  },
+  'Indonesia': {
+    name: 'Indonesia',
+    d: 'M 1531,469 L 1547,478 L 1569,492 L 1581,506 L 1589,517 L 1631,522 L 1642,547 L 1658,547 L 1689,547 L 1706,547 L 1744,519 L 1778,514 L 1778,544 L 1747,544 L 1725,544 L 1689,558 L 1658,550 L 1636,547 L 1603,544 L 1586,533 L 1569,528 L 1556,514 L 1542,508 L 1533,494 L 1531,469 Z'
+  },
+  'Papúa Nueva Guinea': {
+    name: 'Papúa Nueva Guinea',
+    d: 'M 1783,517 L 1794,517 L 1817,511 L 1839,517 L 1861,536 L 1864,558 L 1842,558 L 1817,556 L 1797,550 L 1783,550 L 1783,517 Z'
+  }
+};
+
+
+function normalizeText(str) {
+  if (!str) return '';
+  return str
+    .toLowerCase()
+    .normalize('NFD')                    // separa tildes
+    .replace(/[\u0300-\u036f]/g, '')     // quita tildes
+    .replace(/\s+/g, ' ')                // colapsa espacios
+    .trim();
+}
+
+// Regiones cafetaleras famosas → país padre.
+// Cuando el usuario escribe solo la región, mapeamos al país.
+const REGION_TO_COUNTRY = {
+  // Guatemala
+  'atitlan': 'Guatemala',
+  'huehuetenango': 'Guatemala',
+  'huehue': 'Guatemala',
+  'antigua': 'Guatemala',
+  'san marcos': 'Guatemala',
+  'coban': 'Guatemala',
+  'fraijanes': 'Guatemala',
+  'acatenango': 'Guatemala',
+  'nuevo oriente': 'Guatemala',
+
+  // Colombia
+  'huila': 'Colombia',
+  'narino': 'Colombia',
+  'cauca': 'Colombia',
+  'tolima': 'Colombia',
+  'antioquia': 'Colombia',
+  'caldas': 'Colombia',
+  'quindio': 'Colombia',
+  'risaralda': 'Colombia',
+  'santander': 'Colombia',
+
+  // Etiopía
+  'yirgacheffe': 'Etiopía',
+  'sidamo': 'Etiopía',
+  'sidama': 'Etiopía',
+  'guji': 'Etiopía',
+  'limu': 'Etiopía',
+  'harrar': 'Etiopía',
+  'kaffa': 'Etiopía',
+
+  // Kenia
+  'nyeri': 'Kenia',
+  'kirinyaga': 'Kenia',
+  'kiambu': 'Kenia',
+
+  // Costa Rica
+  'tarrazu': 'Costa Rica',
+  'tres rios': 'Costa Rica',
+  'naranjo': 'Costa Rica',
+  'dota': 'Costa Rica',
+
+  // Panamá
+  'boquete': 'Panamá',
+  'volcan': 'Panamá',
+  'chiriqui': 'Panamá',
+
+  // Brasil
+  'cerrado': 'Brasil',
+  'minas gerais': 'Brasil',
+  'sul de minas': 'Brasil',
+  'mogiana': 'Brasil',
+  'bahia': 'Brasil',
+  'espirito santo': 'Brasil',
+
+  // Honduras
+  'marcala': 'Honduras',
+  'copan': 'Honduras',
+  'santa barbara': 'Honduras',
+
+  // El Salvador
+  'apaneca': 'El Salvador',
+  'ilamatepec': 'El Salvador',
+
+  // México
+  'chiapas': 'México',
+  'oaxaca': 'México',
+  'veracruz': 'México',
+
+  // Perú
+  'amazonas peru': 'Perú',
+  'amazonas': 'Perú',
+  'cajamarca': 'Perú',
+  'puno': 'Perú',
+  'cusco': 'Perú',
+  'junin': 'Perú',
+  'chanchamayo': 'Perú',
+
+  // Nicaragua
+  'jinotega': 'Nicaragua',
+  'matagalpa': 'Nicaragua',
+  'segovia': 'Nicaragua',
+  'nueva segovia': 'Nicaragua',
+
+  // Yemen
+  'mocha': 'Yemen',
+  'haraz': 'Yemen',
+  'ismaili': 'Yemen',
+
+  // Indonesia
+  'sumatra': 'Indonesia',
+  'mandheling': 'Indonesia',
+  'gayo': 'Indonesia',
+  'java': 'Indonesia',
+  'bali': 'Indonesia',
+  'flores': 'Indonesia',
+  'sulawesi': 'Indonesia',
+  'toraja': 'Indonesia',
+
+  // Rwanda
+  'huye': 'Rwanda',
+  'nyamasheke': 'Rwanda',
+
+  // India
+  'monsoon malabar': 'India',
+  'mysore': 'India',
+  'karnataka': 'India',
+
+  // Ecuador
+  'loja': 'Ecuador',
+  'pichincha': 'Ecuador',
+
+  // Bolivia
+  'caranavi': 'Bolivia',
+  'yungas': 'Bolivia',
+
+  // Venezuela
+  'tachira': 'Venezuela',
+  'merida': 'Venezuela'
+};
+
+function resolveOriginToCountry(originStr) {
+  if (!originStr) return null;
+  const normalized = normalizeText(originStr);
+  if (!normalized) return null;
+
+  // 1. ¿Coincide directo con un país del diccionario?
+  for (const key of Object.keys(COFFEE_COUNTRIES)) {
+    const normKey = normalizeText(key);
+    if (normalized === normKey) return key;
+  }
+
+  // 2. ¿El string contiene un nombre de país?
+  for (const key of Object.keys(COFFEE_COUNTRIES)) {
+    const normKey = normalizeText(key);
+    // Buscar como palabra completa (con bordes de palabra)
+    const regex = new RegExp(`\\b${normKey}\\b`);
+    if (regex.test(normalized)) return key;
+  }
+
+  // 3. ¿Es una región famosa que mapea a un país?
+  for (const region of Object.keys(REGION_TO_COUNTRY)) {
+    const regex = new RegExp(`\\b${region}\\b`);
+    if (regex.test(normalized)) return REGION_TO_COUNTRY[region];
+  }
+
+  // 4. Match parcial sólo como último recurso (sin word boundaries).
+  //    Útil para casos como "guate" o "etiop"
+  const aliases = {
+    'guate': 'Guatemala',
+    'etiop': 'Etiopía',
+    'colomb': 'Colombia',
+    'bras': 'Brasil',
+    'mex': 'México',
+    'panam': 'Panamá',
+    'salvador': 'El Salvador',
+    'rica': 'Costa Rica',
+    'rwand': 'Rwanda',
+    'ruand': 'Rwanda',
+    'kenya': 'Kenia',
+    'keny': 'Kenia',
+    'yemen': 'Yemen',
+    'peru': 'Perú',
+    'bolivi': 'Bolivia',
+    'ecuador': 'Ecuador',
+    'jamaic': 'Jamaica',
+    'cuba': 'Cuba',
+    'haiti': 'Haití',
+    'india': 'India',
+    'china': 'China',
+    'indonesi': 'Indonesia',
+    'vietnam': 'Vietnam',
+    'tailand': 'Tailandia',
+    'filipin': 'Filipinas',
+    'nicaragua': 'Nicaragua',
+    'honduras': 'Honduras',
+    'tanzan': 'Tanzania',
+    'uganda': 'Uganda',
+    'burundi': 'Burundi',
+    'venezuel': 'Venezuela',
+    'puerto rico': 'Puerto Rico',
+    'dominican': 'República Dominicana',
+    'papua': 'Papúa Nueva Guinea'
+  };
+  for (const alias of Object.keys(aliases)) {
+    if (normalized.includes(alias)) return aliases[alias];
+  }
+
+  return null;
+}
+
+function renderOriginsMap() {
+  const svg = document.getElementById('origins-map');
+  const counter = document.getElementById('origins-map-counter');
+  if (!svg) return;
+
+  const countByCountry = {};
+  const unmatched = [];
+  pantry.forEach(p => {
+    if (!p.origin) return;
+    const matched = resolveOriginToCountry(p.origin);
+    if (matched) {
+      countByCountry[matched] = (countByCountry[matched] || 0) + 1;
+    } else {
+      unmatched.push(p.origin);
+    }
+  });
+
+  if (unmatched.length > 0) {
+    console.warn('[Mapa] No se pudo mapear estos orígenes:', unmatched);
+  }
+
+  svg.innerHTML = `
+  <line x1="0" y1="500" x2="2000" y2="500" stroke="rgba(184,115,51,0.18)" stroke-width="0.8" stroke-dasharray="4 6"/>
+  <line x1="0" y1="370" x2="2000" y2="370" stroke="rgba(255,255,255,0.04)" stroke-width="0.5" stroke-dasharray="2 8"/>
+  <line x1="0" y1="630" x2="2000" y2="630" stroke="rgba(255,255,255,0.04)" stroke-width="0.5" stroke-dasharray="2 8"/>
+`;
+  Object.entries(COFFEE_COUNTRIES).forEach(([key, info]) => {
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', info.d);
+    path.setAttribute('class', 'country-shape');
+    path.dataset.country = key;
+    path.dataset.name = info.name;
+    const count = countByCountry[key] || 0;
+    if (count > 0) { path.classList.add('active'); path.dataset.count = count; }
+    svg.appendChild(path);
+  });
+
+  setupOriginsMapTooltip();
+  if (counter) {
+    const activeCount = Object.keys(countByCountry).length;
+    counter.textContent = `${activeCount} ${activeCount === 1 ? 'país' : 'países'}`;
+  }
+}
+
+function setupOriginsMapTooltip() {
+  const tooltip = document.getElementById('origins-map-tooltip');
+  const svg = document.getElementById('origins-map');
+  if (!tooltip || !svg) return;
+
+  const showTip = (e, target) => {
+    if (!target.classList.contains('active')) return;
+    const name = target.dataset.name;
+    const count = parseInt(target.dataset.count) || 0;
+    tooltip.innerHTML = `<strong>${name}</strong>${count} ${count === 1 ? 'bolsa' : 'bolsas'} en alacena`;
+    tooltip.classList.add('visible');
+    const x = (e.clientX || (e.touches && e.touches[0] && e.touches[0].clientX) || 0);
+    const y = (e.clientY || (e.touches && e.touches[0] && e.touches[0].clientY) || 0);
+    const tipW = tooltip.offsetWidth;
+    let left = x - tipW / 2;
+    if (left < 8) left = 8;
+    if (left + tipW > window.innerWidth - 8) left = window.innerWidth - tipW - 8;
+    tooltip.style.left = left + 'px';
+    tooltip.style.top = (y - tooltip.offsetHeight - 12) + 'px';
+  };
+
+  svg.addEventListener('mousemove', (e) => {
+    const target = e.target.closest('.country-shape');
+    if (target) showTip(e, target); else tooltip.classList.remove('visible');
+  });
+  svg.addEventListener('mouseleave', () => tooltip.classList.remove('visible'));
+  svg.addEventListener('touchstart', (e) => {
+    const target = e.target.closest('.country-shape');
+    if (target) { showTip(e, target); setTimeout(() => tooltip.classList.remove('visible'), 1800); }
+  }, { passive: true });
+};
+
 
 window.renderPantry = function() {
   const container = document.getElementById('pantry-list');
-  if(!container) return;
+  if (!container) return;
   container.innerHTML = '';
-  
+
   const activeBags = pantry.filter(p => p.currentWeight > 0);
-  const emptyBags = pantry.filter(p => p.currentWeight <= 0);
-  
+  const emptyBags  = pantry.filter(p => p.currentWeight <= 0);
+
   if (pantry.length === 0) {
-    container.innerHTML = '<div style="color: var(--color-text-muted); font-size: 0.9rem; padding: 20px; text-align: center;">Tu alacena está vacía. Añade tu primera bolsa de café.</div>';
+    container.innerHTML = `
+      <div class="pantry-empty">
+        <div class="pantry-empty-icon">🫙</div>
+        <div class="pantry-empty-title">Tu alacena está vacía</div>
+        <div class="pantry-empty-subtitle">Añade tu primera bolsa de café arriba.</div>
+      </div>`;
+    renderAlacenaStats();
+    renderOriginsMap();
     return;
   }
-  
-  const renderBags = (bags, opacity = 1) => {
-    bags.forEach(bag => {
-      const p = Math.max(0, Math.min(100, (bag.currentWeight / bag.initialWeight) * 100));
-      const isLow = p < 20;
-      
-      const card = document.createElement('div');
-      card.style.cssText = `background: var(--color-bg); padding: 16px; border-radius: var(--radius-sm); border: 1px solid var(--color-border); opacity: ${opacity}; position: relative;`;
-      
-      card.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; position: relative; z-index: 2;">
-          <div>
-            <div style="font-weight: 600; font-size: 1.1rem; color: var(--color-text-primary); margin-bottom: 2px;">${bag.name}</div>
-            <div style="font-size: 0.8rem; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">${bag.roaster}</div>
-          </div>
-          <div style="text-align: right;">
-            <div style="font-weight: bold; font-size: 1.1rem; color: ${isLow ? 'var(--color-danger)' : 'var(--color-success)'};">${bag.currentWeight.toFixed(1)}g</div>
-            <div style="font-size: 0.7rem; color: var(--color-text-muted);">/ ${bag.initialWeight}g</div>
-          </div>
-        </div>
-        <div class="context-menu-container" style="position: absolute; top: 12px; right: 12px; z-index: 3;">
+
+  function renderBag(bag, isEmpty) {
+    const card = document.createElement('div');
+    card.className = `pantry-card tiltable${isEmpty ? ' empty' : ''}`;
+    if (bag.firebaseId) card.dataset.id = bag.firebaseId;
+
+    const freshness = computeFreshness(bag.roastDate);
+    const pct = Math.max(0, Math.min(100, (bag.currentWeight / bag.initialWeight) * 100));
+    const radius = 33;
+    const circumference = 2 * Math.PI * radius;
+    const offset = circumference - (pct / 100) * circumference;
+    const flag = countryToFlag(bag.origin);
+
+    card.innerHTML = `
+      <div class="pantry-card-shine"></div>
+      <div class="pantry-card-context-menu">
+        <div class="context-menu-container">
           <button class="context-menu-btn" onclick="this.nextElementSibling.classList.toggle('active')">⋮</button>
           <div class="context-menu-dropdown">
-            <button class="context-menu-item" onclick="window.openEditPantryModal('${bag.firebaseId}')">✏️ Editar Café</button>
-            <button class="context-menu-item danger" onclick="window.deletePantryBag('${bag.firebaseId}')">🗑️ Eliminar Bolsa</button>
+            <button class="context-menu-item" onclick="window.openEditPantryModal('${bag.firebaseId}')">✏️ Editar</button>
+            <button class="context-menu-item danger" onclick="window.deletePantryBag('${bag.firebaseId}')">🗑️ Eliminar</button>
           </div>
         </div>
-      `;
-      container.appendChild(card);
-    });
+      </div>
+      <div class="pantry-card-header">
+        <div class="pantry-card-title-block">
+          <div class="pantry-card-name">${escapeHtml(bag.name || 'Sin nombre')}</div>
+          <div class="pantry-card-roaster">${escapeHtml(bag.roaster || '—')}</div>
+          <span class="freshness-badge" data-level="${freshness.level}">
+            <span class="freshness-dot"></span>
+            ${freshness.label}
+          </span>
+        </div>
+        <div class="pantry-card-ring" title="${pct.toFixed(0)}% restante">
+          <svg viewBox="0 0 78 78">
+            <circle class="pantry-ring-bg" cx="39" cy="39" r="${radius}"/>
+            <circle class="pantry-ring-fg" cx="39" cy="39" r="${radius}"
+              stroke-dasharray="${circumference.toFixed(2)}"
+              stroke-dashoffset="${offset.toFixed(2)}"/>
+          </svg>
+          <div class="pantry-ring-text">
+            <div class="pantry-ring-grams">${Math.round(bag.currentWeight)}g</div>
+            <div class="pantry-ring-total">/ ${Math.round(bag.initialWeight)}g</div>
+          </div>
+        </div>
+      </div>
+      <div class="pantry-card-meta">
+        ${bag.origin   ? `<span class="pantry-meta-pill"><span class="meta-flag">${flag}</span>${escapeHtml(bag.origin)}</span>` : ''}
+        ${bag.varietal ? `<span class="pantry-meta-pill">${escapeHtml(bag.varietal)}</span>` : ''}
+        ${bag.process  ? `<span class="pantry-meta-pill">${escapeHtml(bag.process)}</span>`  : ''}
+      </div>
+    `;
+    return card;
   }
-  
-  renderBags(activeBags, 1);
-  if(emptyBags.length > 0) {
+
+  activeBags.forEach(b => container.appendChild(renderBag(b, false)));
+
+  if (emptyBags.length > 0) {
     const divider = document.createElement('div');
-    divider.style.cssText = 'font-size: 0.8rem; color: var(--color-text-muted); margin: 12px 0 4px 0; text-transform: uppercase; letter-spacing: 1px;';
-    divider.textContent = 'Histórico (Vacías)';
+    divider.className = 'pantry-divider';
+    divider.textContent = `Histórico (${emptyBags.length} vacías)`;
     container.appendChild(divider);
-    renderBags(emptyBags, 0.5);
+    emptyBags.forEach(b => container.appendChild(renderBag(b, true)));
   }
+
+  setupPantryTilt(container);
+  renderAlacenaStats();
+  renderOriginsMap();
 };
 
 window.updatePantryDropdown = function() {

@@ -707,59 +707,137 @@
       </section>
       <!-- Inspiracion View -->
       <section id="view-inspiracion" class="view-section hidden">
-        <div class="surface" style="margin-bottom: var(--spacing-md); background: linear-gradient(145deg, #1c1d21, #0a0a0c); border: 1px solid rgba(212, 138, 53, 0.3);">
-          <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: var(--color-accent); margin-bottom: 8px;">Aventura Diaria con Noni ✨</div>
-          <h2 id="daily-recipe-name" style="margin-bottom: 8px; font-size: 1.5rem;">Cargando...</h2>
-          <p id="daily-recipe-desc" style="color: var(--color-text-secondary); font-size: 0.9rem; margin-bottom: 16px;">Descubriendo inspiración diaria...</p>
-          <div id="daily-recipe-ingredients" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;"></div>
-          <div id="daily-recipe-steps" style="font-size: 0.85rem; color: var(--color-text-muted); border-left: 2px solid var(--color-border); padding-left: 10px;"></div>
-        </div>
-
-        <!-- Quick Prompts a Noni -->
-        <div class="surface" style="margin-bottom: var(--spacing-md); border-color: rgba(106, 191, 99, 0.3);">
-          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-            <svg width="24" height="24" viewBox="0 0 24 24" style="color: var(--color-success);"><path fill="currentColor" d="M12,2A7,7 0 0,0 5,9C5,11.38 6.19,13.47 8,14.74V17A1,1 0 0,0 9,18H15A1,1 0 0,0 16,17V14.74C17.81,13.47 19,11.38 19,9A7,7 0 0,0 12,2M9,21A1,1 0 0,0 10,22H14A1,1 0 0,0 15,21V20H9V21Z"/></svg>
-            <h3 style="font-size: 1.1rem; font-weight: 600; margin: 0; color: var(--color-text-primary);">Pregúntale a Noni</h3>
+        
+        <!-- 1. Hero Receta del Día -->
+        <section id="daily-hero" class="daily-hero">
+          <div class="daily-hero-bg" aria-hidden="true"></div>
+          <div class="daily-hero-ribbon">
+            <span class="ribbon-text">HOY</span>
+            <span class="ribbon-date" id="daily-hero-date"></span>
           </div>
-          <p style="font-size: 0.8rem; color: var(--color-text-secondary); margin-bottom: 16px;">Toca cualquier sugerencia para generar una receta inteligente al instante.</p>
-          
-          <div style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none;">
-            <button class="chip noni-prompt-chip" style="white-space: nowrap; border-color: var(--color-success); color: var(--color-success);">🧊 Receta hiper refrescante</button>
-            <button class="chip noni-prompt-chip" style="white-space: nowrap; border-color: var(--color-success); color: var(--color-success);">☕ Espresso moderno y dulce</button>
-            <button class="chip noni-prompt-chip" style="white-space: nowrap; border-color: var(--color-success); color: var(--color-success);">🌸 Etiopía lavado en V60</button>
-            <button class="chip noni-prompt-chip" style="white-space: nowrap; border-color: var(--color-success); color: var(--color-success);">💪 Aeropress fuerte al despertar</button>
-            <button class="chip noni-prompt-chip" style="white-space: nowrap; border-color: var(--color-success); color: var(--color-success);">⚖️ Ajustar molienda gruesa</button>
-          </div>
-        </div>
 
-        <!-- Masterclass IA Suggester -->
-        <div id="ai-suggester-box" class="surface" style="background-color: var(--color-surface); margin-bottom: var(--spacing-md); padding: 0; overflow: hidden;">
+          <div class="daily-hero-content">
+            <div class="daily-hero-eyebrow">
+              <span class="daily-hero-spark">✨</span>
+              <span>Receta del Día por Noni</span>
+            </div>
 
-          <!-- Content: Catalogo -->
-          <div id="ai-catalog-content" style="padding: 16px; border-top: 1px solid rgba(106, 191, 99, 0.2);">
-            <div style="font-size: 0.85rem; color: var(--color-text-secondary); margin-bottom: 12px;">Explora recetas maestras para todos tus métodos.</div>
+            <h2 class="daily-hero-title" id="daily-recipe-name">—</h2>
+            <p class="daily-hero-desc" id="daily-recipe-desc">—</p>
+
+            <div class="daily-hero-pills" id="daily-recipe-ingredients"></div>
+
+            <details class="daily-hero-steps">
+              <summary class="daily-hero-steps-toggle">
+                <span>Ver pasos</span>
+                <svg class="chevron" width="14" height="14" viewBox="0 0 24 24">
+                  <path fill="currentColor" d="M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z"/>
+                </svg>
+              </summary>
+              <div id="daily-recipe-steps" class="daily-hero-steps-body"></div>
+            </details>
             
+            <button id="btn-refresh-daily" class="btn-refresh-daily" aria-label="Generar otra receta">
+              <svg width="14" height="14" viewBox="0 0 24 24">
+                <path fill="currentColor" d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"/>
+              </svg>
+              <span>Otra receta</span>
+            </button>
+          </div>
+        </section>
+
+        <!-- 2. AI Suggester -->
+        <section class="discover-section">
+          <header class="discover-section-header">
+            <div class="discover-section-icon">🎯</div>
+            <div class="discover-section-meta">
+              <h3 class="discover-section-title">Para tu paladar</h3>
+              <p class="discover-section-subtitle">Recomendaciones según tus catas favoritas</p>
+            </div>
+          </header>
+          <div id="ai-suggester-box" class="hidden">
+            <div id="ai-suggester-content"></div>
+          </div>
+        </section>
+
+        <!-- 3. Quick Prompts a Noni -->
+        <section class="discover-section">
+          <header class="discover-section-header">
+            <div class="discover-section-icon">🐾</div>
+            <div class="discover-section-meta">
+              <h3 class="discover-section-title">Pregúntale a Noni</h3>
+              <p class="discover-section-subtitle">Atajos para inspirarte</p>
+            </div>
+          </header>
+          <div class="noni-prompts-grid">
+            <button class="chip noni-prompt-chip">🧊 Receta hiper refrescante</button>
+            <button class="chip noni-prompt-chip">☕ Espresso moderno y dulce</button>
+            <button class="chip noni-prompt-chip">🌸 Etiopía lavado en V60</button>
+            <button class="chip noni-prompt-chip">💪 Aeropress fuerte al despertar</button>
+            <button class="chip noni-prompt-chip">⚖️ Ajustar molienda gruesa</button>
+          </div>
+        </section>
+
+        <!-- 4. Masterclass Catalog -->
+        <section class="discover-section">
+          <header class="discover-section-header">
+            <div class="discover-section-icon">📖</div>
+            <div class="discover-section-meta">
+              <h3 class="discover-section-title">Catálogo Masterclass</h3>
+              <p class="discover-section-subtitle">Recetas estandarte de baristas mundiales</p>
+            </div>
+          </header>
+          <div id="ai-catalog-content">
             <!-- Filters -->
-            <div id="ai-catalog-filters" style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 12px; scrollbar-width: none;">
-              <div class="chip selected" data-method="Todos" style="white-space: nowrap;">Todos</div>
-              <div class="chip" data-method="V60" style="white-space: nowrap;">V60</div>
-              <div class="chip" data-method="Aeropress" style="white-space: nowrap;">Aeropress</div>
-              <div class="chip" data-method="Prensa Francesa" style="white-space: nowrap;">Prensa Francesa</div>
-              <div class="chip" data-method="Chemex" style="white-space: nowrap;">Chemex</div>
-              <div class="chip" data-method="Espresso" style="white-space: nowrap;">Espresso</div>
-              <div class="chip" data-method="Moka Pot" style="white-space: nowrap;">Moka Pot</div>
+            <div id="ai-catalog-filters">
+              <div class="chip selected" data-method="Todos">Todos</div>
+              <div class="chip" data-method="V60">V60</div>
+              <div class="chip" data-method="Aeropress">Aeropress</div>
+              <div class="chip" data-method="Prensa Francesa">Prensa Francesa</div>
+              <div class="chip" data-method="Chemex">Chemex</div>
+              <div class="chip" data-method="Espresso">Espresso</div>
+              <div class="chip" data-method="Moka Pot">Moka Pot</div>
             </div>
 
             <!-- List -->
-            <div id="ai-catalog-list" style="display: flex; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 12px; scrollbar-width: none;"></div>
+            <div id="ai-catalog-list"></div>
           </div>
-        </div>
-
+        </section>
 
       </section>
 
       <!-- Alacena View -->
       <section id="view-alacena" class="view-section hidden">
+
+        <!-- Shared SVG gradient for pantry rings -->
+        <svg width="0" height="0" style="position:absolute;" aria-hidden="true">
+          <defs>
+            <linearGradient id="pantry-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#b87333"/>
+              <stop offset="100%" stop-color="#e8b021"/>
+            </linearGradient>
+          </defs>
+        </svg>
+
+        <!-- Alacena Stats -->
+        <section id="alacena-stats" class="alacena-stats">
+          <div class="alacena-stat-card">
+            <div class="alacena-stat-icon">📦</div>
+            <div class="alacena-stat-value" id="alacena-stat-active">0</div>
+            <div class="alacena-stat-label">Bolsas activas</div>
+          </div>
+          <div class="alacena-stat-card">
+            <div class="alacena-stat-icon">⚖️</div>
+            <div class="alacena-stat-value" id="alacena-stat-grams">0</div>
+            <div class="alacena-stat-label">Gramos disponibles</div>
+          </div>
+          <div class="alacena-stat-card">
+            <div class="alacena-stat-icon">🌍</div>
+            <div class="alacena-stat-value" id="alacena-stat-origins">0</div>
+            <div class="alacena-stat-label">Orígenes únicos</div>
+          </div>
+        </section>
+
         <div class="surface" style="margin-bottom: var(--spacing-md);">
           <h2 style="font-size: 1.25rem; margin-bottom: 16px;">Añadir Bolsa de Café</h2>
           <form id="form-pantry">
@@ -780,7 +858,10 @@
               </div>
               <div class="form-group">
                 <label for="pantry-origin">Origen</label>
-                <input type="text" id="pantry-origin" placeholder="País o Región" required>
+                <div class="origin-input-wrapper">
+                  <input type="text" id="pantry-origin" placeholder="País o Región" required>
+                  <span id="pantry-origin-flag" class="origin-input-flag" aria-hidden="true"></span>
+                </div>
               </div>
             </div>
             <div class="input-row">
@@ -813,10 +894,25 @@
 
         <div class="surface">
           <h2 style="font-size: 1.25rem; margin-bottom: 16px;">Tus Cafés</h2>
-          <div id="pantry-list" style="display: flex; flex-direction: column; gap: 12px;">
+          <div id="pantry-list">
             <!-- Rendered by JS -->
           </div>
         </div>
+
+        <!-- Origins World Map -->
+        <section id="origins-map-section" class="origins-map-section">
+          <div class="origins-map-header">
+            <h3 class="origins-map-title">Tu mundo del café</h3>
+            <div class="origins-map-counter" id="origins-map-counter">0 países</div>
+          </div>
+          <div class="origins-map-wrapper">
+            <svg id="origins-map" viewBox="0 0 2000 1001" preserveAspectRatio="xMidYMid meet">
+              <!-- Injected by JS -->
+            </svg>
+          </div>
+          <div id="origins-map-tooltip" class="origins-map-tooltip"></div>
+        </section>
+
       </section>
     </main>
 
